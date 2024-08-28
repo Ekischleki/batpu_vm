@@ -1,5 +1,5 @@
 
-use std::{path::Path, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 use num_bigint::{BigInt, Sign};
 use phf::{phf_map, phf_set};
@@ -97,7 +97,7 @@ static DELIM_MAPPING: phf::Map<&'static str, &'static TokenType> = phf_map! {
     
 /// If the file reader error was a EOF error, adds a EOF token to the token stream, and returns Some(token_stream)
 /// If the file reader error was unusual, it adds a diagnostic and returns None, as the tokens don't matter if incomplete.
-fn on_file_reader_error(e: FileReaderError, compilation: &mut Compilation, mut token_stream: Vec<Token>, current_file: &Box<Path>) -> Option<TypeStream<Token>> {
+fn on_file_reader_error(e: FileReaderError, compilation: &mut Compilation, mut token_stream: Vec<Token>, current_file: &PathBuf) -> Option<TypeStream<Token>> {
     match e {
         FileReaderError::ReachedEOF => {
             token_stream.push(Token::eof(current_file));
@@ -112,7 +112,7 @@ fn on_file_reader_error(e: FileReaderError, compilation: &mut Compilation, mut t
     }
 }
 
-pub fn tokenise(file_reader: &mut dyn FileReader, current_file: &Box<Path>, compilation: &mut Compilation) -> Option<TypeStream<Token>> {
+pub fn tokenise(file_reader: &mut dyn FileReader, current_file: &PathBuf, compilation: &mut Compilation) -> Option<TypeStream<Token>> {
     let mut token_stream = vec![];
     loop {
         let current_char;
@@ -175,7 +175,7 @@ pub fn tokenise(file_reader: &mut dyn FileReader, current_file: &Box<Path>, comp
 }
 
 
-fn read_text(file_reader: &mut dyn FileReader, current_file: &Box<Path>) -> Result<Token, Diagnostic> {
+fn read_text(file_reader: &mut dyn FileReader, current_file: &PathBuf) -> Result<Token, Diagnostic> {
     let first_char = file_reader.peek_char().expect("Unexpected file reader error");
     if first_char.is_ascii_digit() || first_char == '-' {
         read_number(file_reader, current_file)
@@ -186,7 +186,7 @@ fn read_text(file_reader: &mut dyn FileReader, current_file: &Box<Path>) -> Resu
     }
 }
 
-fn read_number(file_reader: &mut dyn FileReader, current_file: &Box<Path>) -> Result<Token, Diagnostic> {
+fn read_number(file_reader: &mut dyn FileReader, current_file: &PathBuf) -> Result<Token, Diagnostic> {
     let start_char = file_reader.get_position();
     let mut number = String::new();
     let mut number_char = file_reader.read_char().expect("Unintended file reading error.");
@@ -306,7 +306,7 @@ fn find_smallest_type(number: String, code_location: CodeLocation) -> Result<Tok
     }
 }
 
-fn read_delim(file_reader: &mut dyn FileReader, current_file: &Box<Path>) -> Result<Token, Diagnostic> {
+fn read_delim(file_reader: &mut dyn FileReader, current_file: &PathBuf) -> Result<Token, Diagnostic> {
     let start_char = file_reader.get_position();
     let mut delim = String::with_capacity(2);
     loop {
@@ -352,7 +352,7 @@ fn read_delim(file_reader: &mut dyn FileReader, current_file: &Box<Path>) -> Res
     }
 }
 
-fn read_keyword(file_reader: &mut dyn FileReader, current_file: &Box<Path>) -> Result<Token, Diagnostic> {
+fn read_keyword(file_reader: &mut dyn FileReader, current_file: &PathBuf) -> Result<Token, Diagnostic> {
     let start_char = file_reader.get_position();
     let mut keyword = String::new();
     let mut keyword_char = file_reader.read_char().expect("Unintended file reading error.");
@@ -394,7 +394,7 @@ fn read_keyword(file_reader: &mut dyn FileReader, current_file: &Box<Path>) -> R
     }
 }
 
-fn read_string(file_reader: &mut dyn FileReader, current_file: &Box<Path>) -> Result<Token, Diagnostic> {
+fn read_string(file_reader: &mut dyn FileReader, current_file: &PathBuf) -> Result<Token, Diagnostic> {
 
     let location_begin = file_reader.get_position();
         file_reader.set_position(file_reader.get_position() + 1); //We don't care about the initial '"'.

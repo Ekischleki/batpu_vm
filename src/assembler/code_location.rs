@@ -1,8 +1,8 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct CodeLocation {
-    pub path: Box<Path>,
+    pub path: PathBuf,
     pub section: Option<Section>
 }
 
@@ -31,14 +31,14 @@ impl CodeLocation {
         }
     }
 
-    pub fn new(path: Box<Path>) -> Self {
+    pub fn new(path: PathBuf) -> Self {
         Self{
             path,
             section: None
         }
     }
 
-    pub fn with_section(path: Box<Path>, location_begin: u64, location_end: u64) -> Self {
+    pub fn with_section(path: PathBuf, location_begin: u64, location_end: u64) -> Self {
         Self{
             path,
             section: Some(Section {

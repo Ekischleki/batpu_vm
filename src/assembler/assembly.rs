@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::assembler::diagnostic::{DiagnosticPipelineLocation, DiagnosticType};
 
-use super::{diagnostic::Diagnostic, syntax::{InstructionSyntax, Syntax}, token::{Token, TokenType}};
+use super::{diagnostic::Diagnostic, source_mapping::SourceMappings, syntax::{InstructionSyntax, Syntax}, token::{Token, TokenType}};
 
 pub struct AssemblyBuilder {
     labels: HashMap<String, usize>, //Identifier + pointing instruction
@@ -16,32 +16,44 @@ impl AssemblyBuilder {
         Self { labels: HashMap::new(), label_resolve: vec![] }
     }
 
-    pub fn build_asm(mut self, assembly: Vec<Syntax>) -> Result<Vec<u8>, Diagnostic> {
-        let mut res = vec![];
+    pub fn build_asm(mut self, ast: Vec<Syntax>) -> Result<([u8; 2048], SourceMappings), Diagnostic> {
+        let mut source_mappings = SourceMappings::new();
+
+        let mut assembly_builder = vec![];
         //Generate assembly without inserting labels.
-        for syntax in assembly {
+        for syntax in ast {
             match syntax {
-                Syntax::Instruction { original_instruction: _, instruction_syntax } => {
-                    res.extend_from_slice(&self.build_instruction(res.len(), instruction_syntax))
+                Syntax::Instruction { original_instruction, instruction_syntax } => {
+                    let asm_start = assembly_builder.len();
+                    assembly_builder.extend_from_slice(&self.build_instruction(assembly_builder.len(), instruction_syntax));
+                    let asm_end = assembly_builder.len();
+
+                    source_mappings.push_mapping(original_instruction.code_location(), asm_start, asm_end);
                 }
                 Syntax::Label { dot: _, identifier } => {
-                    self.labels.insert(identifier.unwrap_identifier(), res.len());
+                    self.labels.insert(identifier.unwrap_identifier(), assembly_builder.len());
                 }
             }
         }
-        if res.len() > 2048 {
+        if assembly_builder.len() > 2048 {
             return Err(Diagnostic::new(
                 DiagnosticType::Error, 
-                format!("The resulting assembly is with {} bytes too large. The allowed maximum is 2048 bytes, that means you're {} bytes over the limit.", res.len(), res.len() - 2048), 
+                format!("The resulting assembly is with {} bytes too large. The allowed maximum is 2048 bytes, that means you're {} bytes over the limit.", assembly_builder.len(), assembly_builder.len() - 2048), 
                 None, 
                 DiagnosticPipelineLocation::Assembling));
         }
         //Insert labels, now that size is known
         for (label_name, insert_location) in self.label_resolve {
             let label_location = self.labels.get(&label_name).unwrap();
-            Self::insert_address(&mut res, insert_location, *label_location);
+            Self::insert_address(&mut assembly_builder, insert_location, *label_location);
         }
-        return Ok(res);
+
+        let mut assembly = [1; 2048]; //Unused space is the HLT instruction, as a failsafe 
+        for (i, &val) in assembly_builder.iter().enumerate() {
+            assembly[i] = val;
+        }
+
+        return Ok((assembly, source_mappings));
     }
 
     fn insert_address(assembly: &mut Vec<u8>, insert_location: usize, insert_adr: usize) {

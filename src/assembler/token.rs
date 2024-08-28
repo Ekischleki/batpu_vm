@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 use super::code_location::CodeLocation;
 
@@ -28,7 +28,7 @@ impl Token {
         }
     }
 
-    pub fn eof(path: &Box<Path>) -> Self {
+    pub fn eof(path: &PathBuf) -> Self {
         Self {
             token_type: TokenType::EOF,
             code_location: CodeLocation::new(path.to_owned())

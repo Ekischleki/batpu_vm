@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::Path};
+use std::{fs::File, io::Read, path::PathBuf};
 
 use super::{code_location::CodeLocation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, file_reader::{FileReader, FileReaderError}};
 
@@ -6,12 +6,12 @@ use super::{code_location::CodeLocation, diagnostic::{Diagnostic, DiagnosticPipe
 pub struct StringFileReader {
     position: u64,
     file: Vec<char>,
-    file_path: Box<Path>,
+    file_path: PathBuf,
 }
 
 impl StringFileReader {
     pub fn new() -> Self {
-        Self { position: 0, file: vec![], file_path: Box::from(Path::new(""))}
+        Self { position: 0, file: vec![], file_path: PathBuf::new()}
     }
 }
 
@@ -24,7 +24,7 @@ impl FileReader for StringFileReader {
         self.position = pos;
     }
 
-    fn reset_to_file(&mut self, path: &Box<Path>) -> Result<(), Diagnostic> {
+    fn reset_to_file(&mut self, path: &PathBuf) -> Result<(), Diagnostic> {
         self.position = 0;
         
 
@@ -101,7 +101,7 @@ impl StringFileReader {
 }
 
 
-pub fn get_file_size(file: &File, path: &Box<Path>) -> Result<usize, Diagnostic> {
+pub fn get_file_size(file: &File, path: &PathBuf) -> Result<usize, Diagnostic> {
 
     let file_length_long: u64;
 

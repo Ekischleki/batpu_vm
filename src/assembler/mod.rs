@@ -1,10 +1,11 @@
 
-use std::{panic, path::Path};
+use std::{panic, path::PathBuf};
 
 use assembly::AssemblyBuilder;
 use compilation::Compilation;
 use diagnostic::Diagnostic;
 use file_reader::FileReader;
+use source_mapping::SourceMappings;
 use string_file_reader::StringFileReader;
 
 pub mod token;
@@ -20,14 +21,16 @@ pub mod semantic_analyzer;
 //pub mod symbol_table;
 pub mod assembly;
 pub mod string_file_reader;
+pub mod emulator;
+pub mod source_mapping;
 #[derive(Debug)]
 pub enum CompilationResult {
     Success {
-        assembly: [u8; 2048],
+        compilation_res: ([u8; 2048], SourceMappings),
         diagnostics: Vec<Diagnostic>
     },
     Error {
-        assembly: Option<[u8; 2048]>,
+        compilation_res: Option<([u8; 2048], SourceMappings)>,
         diagnostics: Vec<Diagnostic>
     },
     Crash {
@@ -35,14 +38,14 @@ pub enum CompilationResult {
     }
 }
 
-pub fn assemble(path: &Box<Path>) -> CompilationResult {
+pub fn assemble(path: &PathBuf) -> CompilationResult {
     let result = panic::catch_unwind(|| {   
         let mut compilation = Compilation::new();
 
         let file_reader:  &mut dyn FileReader = &mut StringFileReader::new(); //Bad file reader, will replace the default eventually.
         if let Err(diagnostic) = file_reader.reset_to_file(&path) {
             compilation.add_diagnostic(diagnostic);
-            return CompilationResult::Error { assembly: None, diagnostics: compilation.diagnostics() } ;
+            return CompilationResult::Error { compilation_res: None, diagnostics: compilation.diagnostics() } ;
         }
 
         let opt_tokens = lexer::tokenise(file_reader, &path, &mut compilation);
@@ -52,7 +55,7 @@ pub fn assemble(path: &Box<Path>) -> CompilationResult {
                 tokens = t;
             }
             None => {
-                return CompilationResult::Error { assembly: None, diagnostics: compilation.diagnostics() }
+                return CompilationResult::Error { compilation_res: None, diagnostics: compilation.diagnostics() }
             }
         }
 
@@ -62,26 +65,24 @@ pub fn assemble(path: &Box<Path>) -> CompilationResult {
         semantic_analyzer::analyze(&ast, &mut compilation);
 
         let assembly_builder = AssemblyBuilder::new();
-        let mut assembly = [1; 2048]; //Unused space is the HLT instruction, as a failsafe 
+        let compilation_res =
         match assembly_builder.build_asm(ast) {
             Ok(asm) => {
-                assert!(asm.len() <= 2048);
-                for (i, &val) in asm.iter().enumerate() {
-                    assembly[i] = val;
-                }
+                Some(asm)
             }
             Err(d) => {
                 compilation.add_diagnostic(d);
+                None
             }
-        }
+        };
 
         
 
         if compilation.is_error_free() {
-            CompilationResult::Success { assembly, diagnostics: compilation.diagnostics() }
+            CompilationResult::Success { compilation_res: compilation_res.unwrap(), diagnostics: compilation.diagnostics() }
         }
         else {
-            CompilationResult::Error { assembly: Some(assembly), diagnostics: compilation.diagnostics() }
+            CompilationResult::Error { compilation_res, diagnostics: compilation.diagnostics() }
         }
     });
 
