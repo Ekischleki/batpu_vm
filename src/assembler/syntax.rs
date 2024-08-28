@@ -19,6 +19,8 @@ impl Syntax {
             panic!("Expected identifier");
         }
     }
+
+    
 }
 
 #[derive(Debug)]
@@ -50,4 +52,81 @@ impl InstructionSyntax {
             _ => {None}
         }
     }
+
+    pub fn get_op(&self) -> Vec<Operation> { //Keeping registers safe since 1954
+        match self {
+            Self::NOP => vec![],
+            Self::HLT => vec![],
+            Self::ADD { a, b, dest } => 
+            vec![
+                Operation::ReadReg(a.expect_register()), 
+                Operation::ReadReg(b.expect_register()), 
+                Operation::WriteReg(dest.expect_register())
+                ],
+            Self::SUB { a, b, dest } => 
+            vec![
+                Operation::ReadReg(a.expect_register()), 
+                Operation::ReadReg(b.expect_register()), 
+                Operation::WriteReg(dest.expect_register())
+                ],
+            Self::NOR { a, b, dest } => 
+            vec![
+                Operation::ReadReg(a.expect_register()), 
+                Operation::ReadReg(b.expect_register()), 
+                Operation::WriteReg(dest.expect_register())
+                ],
+            Self::AND { a, b, dest } => 
+                vec![
+                    Operation::ReadReg(a.expect_register()), 
+                    Operation::ReadReg(b.expect_register()), 
+                    Operation::WriteReg(dest.expect_register())
+                    
+                    ],
+            Self::XOR { a, b, dest } => 
+            vec![
+                Operation::ReadReg(a.expect_register()), 
+                Operation::ReadReg(b.expect_register()), 
+                Operation::WriteReg(dest.expect_register())
+                ],
+            
+            Self::RSH { a, dest } => 
+            vec![
+                Operation::ReadReg(a.expect_register()), 
+                Operation::WriteReg(dest.expect_register())
+                ],
+
+            Self::LDI { a, immediate: _ } =>             
+            vec![
+                Operation::WriteReg(a.expect_register())
+                ],
+            
+            Self::ADI { a, immediate: _ } =>             
+            vec![
+                Operation::ReadReg(a.expect_register()),
+                Operation::WriteReg(a.expect_register())
+                ],
+            Self::JMP { label: _ } => vec![],
+            Self::BRH { label: _ , condition: _} => vec![],
+            Self::CAL { label: _ } => vec![],
+            Self::RET => vec![],
+            Self::LOD { a, dest, offset: _ } => 
+            vec![
+                Operation::ReadReg(a.expect_register()),
+                Operation::WriteReg(dest.expect_register())
+            ],
+            Self::STR { a, source, offset: _ } => 
+            vec![
+                Operation::ReadReg(a.expect_register()),
+                Operation::ReadReg(source.expect_register())
+            ]
+        }
+
+    }
+
+}
+
+
+pub enum Operation {
+    ReadReg(u8),
+    WriteReg(u8),
 }

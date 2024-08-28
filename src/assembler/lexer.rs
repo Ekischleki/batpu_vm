@@ -4,7 +4,7 @@ use std::{path::PathBuf, str::FromStr};
 use num_bigint::{BigInt, Sign};
 use phf::{phf_map, phf_set};
 
-use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, file_reader::{FileReader, FileReaderError}, token::{Condition, ConstValue, Instr, Token, TokenType}, type_stream::TypeStream};
+use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, file_reader::{FileReader, FileReaderError}, token::{Condition, ConstValue, Instr, ParamModifier, Token, TokenType}, type_stream::TypeStream};
 
 
 static ESCAPE_MAPPING: phf::Map<&'static str, &'static str> = phf_map! {
@@ -23,6 +23,11 @@ static IGNORE_CHARS: phf::Set<char> = phf_set! {
 static KEYWORD_MAPPING: phf::Map<&'static str, &'static TokenType> = phf_map! {
     "define" => &TokenType::Define{read_until_semicolon: false},
     "define_s" => &TokenType::Define{read_until_semicolon: true},
+
+    "func" => &TokenType::Func,
+    "mut" => &TokenType::ParamModifier(ParamModifier::Mut),
+    "in" => &TokenType::ParamModifier(ParamModifier::In),
+    "out" => &TokenType::ParamModifier(ParamModifier::Out),
 
 
     "nop" => &TokenType::Instr(Instr::NOP),
@@ -83,13 +88,22 @@ static KEYWORD_MAPPING: phf::Map<&'static str, &'static TokenType> = phf_map! {
 
 static DELIM_MAPPING: phf::Map<&'static str, &'static TokenType> = phf_map! {
     "." => &TokenType::Dot,
+    "," => &TokenType::Comma,
+
+    ":" => &TokenType::Colon,
+    ";" => &TokenType::Semicolon,
+
+    "(" => &TokenType::OpenParen,
+    ")" => &TokenType::ClosedParen,
+    "{" => &TokenType::OpenCurly,
+    "}" => &TokenType::ClosedCurly,
+
 
     "=" => &TokenType::Condition(Condition::EQ),
     "!=" => &TokenType::Condition(Condition::NE),
     "<=" => &TokenType::Condition(Condition::GE),
     ">" => &TokenType::Condition(Condition::LT),
 
-    ";" => &TokenType::Semicolon,
 
 };
 

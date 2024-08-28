@@ -8,6 +8,15 @@ pub struct Token {
     token_type: TokenType
 }
 impl Token {
+
+    pub fn expect_register(&self) -> u8 {
+        if let TokenType::Register(i) = self.token_type {
+            i
+        } else {
+            panic!("Expected register")
+        }
+    }
+
     pub fn unwrap_identifier(self) -> String {
         if let TokenType::Identifier(i) = self.token_type {
             return i;
@@ -51,13 +60,26 @@ pub enum TokenType {
     Define{read_until_semicolon: bool},
     ConstValue(ConstValue),
     Dot,
+    Colon,
+    Comma,
     Semicolon,
+    OpenParen,
+    ClosedParen,
+    OpenCurly,
+    ClosedCurly,
+    Func,
     Register(u8),
     Condition(Condition),
+    ParamModifier(ParamModifier),
     EOF,
 }
 
-
+#[derive(Debug, Clone)]
+pub enum ParamModifier {
+    Mut,
+    In,
+    Out
+}
 
 #[derive(Debug, Clone)]
 pub enum ConstValue {
