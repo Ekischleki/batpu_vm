@@ -3,6 +3,18 @@ use super::token::{Token, TokenType};
 pub enum Syntax {
     Instruction {original_instruction: Token, instruction_syntax: InstructionSyntax},
     Label {dot: Token, identifier: Token},
+    Func {
+        func_keyword: Token, 
+        identifier: Token, 
+        args: Vec<Arg>,
+        body: Vec<Syntax>,
+    },
+    FuncCall {
+        identifier: Token,
+        args: Vec<Arg>,
+
+    }
+
 }
 
 impl Syntax {
@@ -21,6 +33,11 @@ impl Syntax {
     }
 
     
+}
+#[derive(Debug)]
+pub struct Arg {
+    pub register: u8,
+    pub modifier: Option<Token>,
 }
 
 #[derive(Debug)]

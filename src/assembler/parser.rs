@@ -1,9 +1,17 @@
 use std::collections::HashMap;
 
-use super::{compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{InstructionSyntax, Syntax}, token::{Condition, ConstValue, Instr, Token, TokenType}, type_stream::TypeStream};
+use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{Arg, InstructionSyntax, Syntax}, token::{Condition, ConstValue, Instr, Token, TokenType}, type_stream::TypeStream};
 
 pub fn peek_token_type(token_stream: &TypeStream<Token>) -> TokenType {
     token_stream.extract(|t| t.token_type().clone())
+}
+
+pub fn token_or_diagnostic(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>, expected_token: TokenType) -> Option<Token> {
+    if !expect_token(compilation, token_stream, expected_token) {
+        None
+    } else {
+        Some(token_stream.next())
+    }
 }
 
 pub fn replace_defines(compilation: &mut Compilation, mut token_stream: TypeStream<Token>) -> TypeStream<Token> {
@@ -110,15 +118,31 @@ pub fn read_define(token_stream: &mut TypeStream<Token>, compilation: &mut Compi
     }
 }
 
-pub fn parse(compilation: &mut Compilation, token_stream: TypeStream<Token>) -> Vec<Syntax> {
-    let mut token_stream = replace_defines(compilation, token_stream);
-    //println!("{:#?}", token_stream);
+pub fn read_func(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Syntax> {
+    let func_keyword = token_stream.next(); //We know it is the keyword.
+    let identifier = token_or_diagnostic(compilation, token_stream, TokenType::Identifier(String::new()))?;
+    _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenParen)?;
+    let args = read_args(compilation, token_stream);
+    _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenCurly)?;
+    let body = read_body(compilation, token_stream);
+
+    Some(Syntax::Func { func_keyword, identifier, args, body })
+}
+
+pub fn read_func_call(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Syntax> {
+    let identifier = token_stream.next();
+    _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenParen)?;
+    let args = read_args(compilation, token_stream);
+    Some(Syntax::FuncCall { identifier, args })
+}
+
+pub fn read_body(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Vec<Syntax> {
     let mut output = vec![];
     loop {
-        let token_type = peek_token_type(&token_stream);
+        let token_type = peek_token_type(token_stream);
         match token_type {
             TokenType::Dot => {
-                match read_label(compilation, &mut token_stream) {
+                match read_label(compilation, token_stream) {
                     Some(l) => {
                         output.push(l);
                     }
@@ -126,16 +150,111 @@ pub fn parse(compilation: &mut Compilation, token_stream: TypeStream<Token>) -> 
                 }
             } 
 
-            TokenType::EOF => { return output; }
+            TokenType::Identifier(_) => {
+                let func_call = read_func_call(compilation, token_stream);
+                func_call.map(|f| output.push(f));
+            }
+
+            TokenType::ClosedCurly => {
+                _ = token_stream.next();
+                return output;
+            }
+
+            TokenType::EOF => { 
+                compilation.add_diagnostic(Diagnostic::new(
+                    DiagnosticType::Error, 
+                    format!("Unexpected token EOF. Consider adding a '}}'"), 
+                    Some(token_stream.next().code_location().clone()),  //This will definitely cause crashes, ill fix that later tho
+                    DiagnosticPipelineLocation::Parsing));
+                return output; 
+            }
 
             TokenType::Instr(_) => {
-                match read_instruction(compilation, &mut token_stream) {
+                match read_instruction(compilation, token_stream) {
                     Some(i) => {
                         output.push(i);
                     }
                     _ => {}
                 }
             }
+
+            _ => {
+                compilation.add_diagnostic(Diagnostic::new(
+                    DiagnosticType::Error, 
+                    format!("Unexpected token '{:#?}'", token_type), 
+                    Some(token_stream.next().code_location().clone()), 
+                    DiagnosticPipelineLocation::Parsing));
+            }
+        }
+
+    }
+}
+
+pub fn read_args(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Vec<Arg> {
+    let mut res = vec![];
+    loop {
+        read_arg(compilation, token_stream).map(|arg| res.push(arg));
+        let follow_token = peek_token_type(token_stream);
+        match follow_token {
+            TokenType::ClosedParen => {
+                token_stream.next();
+                return res;
+            }
+            TokenType::Comma => {token_stream.next();}
+            _ => {
+                compilation.add_diagnostic(
+                    Diagnostic::new(
+                        DiagnosticType::Error, 
+                        format!("Expected ')' or comma, got {:#?}", follow_token), 
+                        Some(token_stream.next().code_location().clone()), 
+                        DiagnosticPipelineLocation::Parsing)
+                );
+                return res;
+            }
+        }
+    }
+}
+
+pub fn read_arg(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Arg> {
+    let current_token = peek_token_type(token_stream);
+    match current_token {
+        TokenType::Register(i) =>  {token_stream.next(); Some(Arg {register: i, modifier: None})}
+        TokenType::ParamModifier(_) => {
+            let modifier = token_stream.next();
+            let reg = token_or_diagnostic(compilation, token_stream, TokenType::Register(0))?;
+            if let TokenType::Register(i) = reg.token_type() {
+                Some(Arg {register: *i, modifier: Some(modifier)})
+            } else {
+                panic!("Expected register");
+            }
+        }
+        _ => {
+            
+            compilation.add_diagnostic(Diagnostic::new(
+                DiagnosticType::Error, 
+                format!("Expected register or modifier, got: {:#?}", current_token), 
+                Some(peek_location(token_stream)), 
+                DiagnosticPipelineLocation::Parsing));
+                None
+        }
+    }
+}
+
+pub fn parse(compilation: &mut Compilation, token_stream: TypeStream<Token>) -> Vec<Syntax> {
+    let mut token_stream = replace_defines(compilation, token_stream);
+    //println!("{:#?}", token_stream);
+    let mut output = vec![];
+    loop {
+        let token_type = peek_token_type(&token_stream);
+        match token_type {
+            TokenType::Func => {
+                read_func(compilation, &mut token_stream).map(|f| output.push(f));
+            }
+            TokenType::Identifier(_) => {
+                read_func_call(compilation, &mut token_stream).map(|f| output.push(f));
+            }
+
+            TokenType::EOF => { return output; }
 
             _ => {
                 compilation.add_diagnostic(Diagnostic::new(
@@ -275,13 +394,16 @@ fn read_label(compilation: &mut Compilation, tokens: &mut TypeStream<Token>) -> 
     )
 }
 
+fn peek_location(token_stream: &TypeStream<Token>) -> CodeLocation {
+    token_stream.extract(|t| t.code_location().clone())
+}
 
-fn expect_token(compilation: &mut Compilation, tokens: &TypeStream<Token>, expected_token: TokenType) -> bool {
+fn expect_token(compilation: &mut Compilation, token_stream: &TypeStream<Token>, expected_token: TokenType) -> bool {
 
-    let token_type = peek_token_type(tokens);
+    let token_type = peek_token_type(token_stream);
 
     if std::mem::discriminant(&token_type) != std::mem::discriminant(&expected_token) {
-        let faulty_token_location = tokens.extract(|t| t.code_location().clone());
+        let faulty_token_location = peek_location(token_stream);
 
         compilation.add_diagnostic(Diagnostic::new(
             DiagnosticType::Error, 

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::assembler::diagnostic::{DiagnosticPipelineLocation, DiagnosticType};
 
-use super::{diagnostic::Diagnostic, source_mapping::SourceMappings, syntax::{InstructionSyntax, Syntax}, token::{Token, TokenType}};
+use super::{diagnostic::Diagnostic, source_mapping::SourceMappings, symbol_table::SymbolTable, syntax::{InstructionSyntax, Syntax}, token::{Token, TokenType}};
 
 pub struct AssemblyBuilder {
     labels: HashMap<String, usize>, //Identifier + pointing instruction
@@ -16,7 +16,7 @@ impl AssemblyBuilder {
         Self { labels: HashMap::new(), label_resolve: vec![] }
     }
 
-    pub fn build_asm(mut self, ast: Vec<Syntax>) -> Result<([u8; 2048], SourceMappings), Diagnostic> {
+    pub fn build_asm(mut self, ast: Vec<Syntax>, symbol_table: SymbolTable) -> Result<([u8; 2048], SourceMappings), Diagnostic> {
         let mut source_mappings = SourceMappings::new();
 
         let mut assembly_builder = vec![];

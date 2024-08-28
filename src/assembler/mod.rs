@@ -18,11 +18,11 @@ pub mod type_stream;
 pub mod syntax;
 pub mod parser;
 pub mod semantic_analyzer;
-//pub mod symbol_table;
 pub mod assembly;
 pub mod string_file_reader;
 pub mod emulator;
 pub mod source_mapping;
+pub mod symbol_table;
 #[derive(Debug)]
 pub enum CompilationResult {
     Success {
