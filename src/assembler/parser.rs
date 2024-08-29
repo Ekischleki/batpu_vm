@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{Arg, InstructionSyntax, Syntax}, token::{Condition, ConstValue, Instr, Token, TokenType}, type_stream::TypeStream};
+use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{Arg, InstructionSyntax, Node}, token::{Condition, ConstValue, Instr, Token, TokenType}, type_stream::TypeStream};
 
 pub fn peek_token_type(token_stream: &TypeStream<Token>) -> TokenType {
     token_stream.extract(|t| t.token_type().clone())
@@ -118,7 +118,7 @@ pub fn read_define(token_stream: &mut TypeStream<Token>, compilation: &mut Compi
     }
 }
 
-pub fn read_func(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Syntax> {
+pub fn read_func(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Node> {
     let func_keyword = token_stream.next(); //We know it is the keyword.
     let identifier = token_or_diagnostic(compilation, token_stream, TokenType::Identifier(String::new()))?;
     _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenParen)?;
@@ -126,17 +126,17 @@ pub fn read_func(compilation: &mut Compilation, token_stream: &mut TypeStream<To
     _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenCurly)?;
     let body = read_body(compilation, token_stream);
 
-    Some(Syntax::Func { func_keyword, identifier, args, body })
+    Some(Node::Func { func_keyword, identifier, args, body })
 }
 
-pub fn read_func_call(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Syntax> {
+pub fn read_func_call(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Node> {
     let identifier = token_stream.next();
     _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenParen)?;
     let args = read_args(compilation, token_stream);
-    Some(Syntax::FuncCall { identifier, args })
+    Some(Node::FuncCall { identifier, args })
 }
 
-pub fn read_body(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Vec<Syntax> {
+pub fn read_body(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Vec<Node> {
     let mut output = vec![];
     loop {
         let token_type = peek_token_type(token_stream);
@@ -240,7 +240,7 @@ pub fn read_arg(compilation: &mut Compilation, token_stream: &mut TypeStream<Tok
     }
 }
 
-pub fn parse(compilation: &mut Compilation, token_stream: TypeStream<Token>) -> Vec<Syntax> {
+pub fn parse(compilation: &mut Compilation, token_stream: TypeStream<Token>) -> Vec<Node> {
     let mut token_stream = replace_defines(compilation, token_stream);
     //println!("{:#?}", token_stream);
     let mut output = vec![];
@@ -268,7 +268,7 @@ pub fn parse(compilation: &mut Compilation, token_stream: TypeStream<Token>) -> 
     }
 }
 
-fn read_instruction(compilation: &mut Compilation, tokens: &mut TypeStream<Token>) -> Option<Syntax> {
+fn read_instruction(compilation: &mut Compilation, tokens: &mut TypeStream<Token>) -> Option<Node> {
     let instr_token = tokens.next();
     let instr;
     match instr_token.token_type() {
@@ -282,60 +282,60 @@ fn read_instruction(compilation: &mut Compilation, tokens: &mut TypeStream<Token
 
     match instr {
         Instr::NOP => {
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::NOP })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::NOP })
         }
         Instr::HLT => {
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::HLT })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::HLT })
         }
         Instr::ADD => {
             let (a, b, c) = read_abc(compilation, tokens)?;
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::ADD { a, b, dest: c } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::ADD { a, b, dest: c } })
         }
         Instr::SUB => {
             let (a, b, c) = read_abc(compilation, tokens)?;
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::SUB { a, b, dest: c } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::SUB { a, b, dest: c } })
         }
         Instr::NOR => {
             let (a, b, c) = read_abc(compilation, tokens)?;
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::NOR { a, b, dest: c } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::NOR { a, b, dest: c } })
         }
         Instr::AND => {
             let (a, b, c) = read_abc(compilation, tokens)?;
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::AND { a, b, dest: c } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::AND { a, b, dest: c } })
         }
         Instr::XOR => {
             let (a, b, c) = read_abc(compilation, tokens)?;
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::XOR { a, b, dest: c } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::XOR { a, b, dest: c } })
         }
         Instr::RSH => {
             let (a, b) = read_ab(compilation, tokens)?;
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::RSH { a, dest: b } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::RSH { a, dest: b } })
         }
 
         Instr::LDI => {
             let (a, immediate) = read_immediate(compilation, tokens)?;
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::LDI { a, immediate } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::LDI { a, immediate } })
         }
         Instr::ADI => {
             let (a, immediate) = read_immediate(compilation, tokens)?;
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::ADI { a, immediate } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::ADI { a, immediate } })
         }
 
         Instr::JMP => {
             let label = Box::new(read_label(compilation, tokens)?);
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::JMP { label } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::JMP { label } })
         }
         Instr::BRH => {
             let condition = read_condition(compilation, tokens)?;
             let label = Box::new(read_label(compilation, tokens)?);
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::BRH { condition, label }  })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::BRH { condition, label }  })
         }
         Instr::CAL => {
             let label = Box::new(read_label(compilation, tokens)?);
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::CAL { label } })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::CAL { label } })
         }
         Instr::RET => {
-            Some(Syntax::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::RET })
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::RET })
         }
 
         _ => todo!()
@@ -383,14 +383,14 @@ fn read_condition(compilation: &mut Compilation, tokens: &mut TypeStream<Token>)
     Some(tokens.next())
 }
 
-fn read_label(compilation: &mut Compilation, tokens: &mut TypeStream<Token>) -> Option<Syntax> {
+fn read_label(compilation: &mut Compilation, tokens: &mut TypeStream<Token>) -> Option<Node> {
     let dot = tokens.next();
     if !expect_token(compilation, tokens, TokenType::Identifier(String::new())) {
         return None;
     }
     let identifier = tokens.next();
     Some(
-        Syntax::Label { dot, identifier }
+        Node::Label { dot, identifier }
     )
 }
 

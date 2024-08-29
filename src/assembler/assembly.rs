@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::assembler::diagnostic::{DiagnosticPipelineLocation, DiagnosticType};
 
-use super::{diagnostic::Diagnostic, source_mapping::SourceMappings, symbol_table::SymbolTable, syntax::{InstructionSyntax, Syntax}, token::{Token, TokenType}};
+use super::{diagnostic::Diagnostic, source_mapping::SourceMappings, symbol_table::SymbolTable, syntax::{InstructionSyntax, Node}, token::{Token, TokenType}};
 
 pub struct AssemblyBuilder {
     labels: HashMap<String, usize>, //Identifier + pointing instruction
@@ -16,21 +16,21 @@ impl AssemblyBuilder {
         Self { labels: HashMap::new(), label_resolve: vec![] }
     }
 
-    pub fn build_asm(mut self, ast: Vec<Syntax>, symbol_table: SymbolTable) -> Result<([u8; 2048], SourceMappings), Diagnostic> {
+    pub fn build_asm(mut self, ast: Vec<Node>, symbol_table: SymbolTable) -> Result<([u8; 2048], SourceMappings), Diagnostic> {
         let mut source_mappings = SourceMappings::new();
 
         let mut assembly_builder = vec![];
         //Generate assembly without inserting labels.
         for syntax in ast {
             match syntax {
-                Syntax::Instruction { original_instruction, instruction_syntax } => {
+                Node::Instruction { original_instruction, instruction_syntax } => {
                     let asm_start = assembly_builder.len();
                     assembly_builder.extend_from_slice(&self.build_instruction(assembly_builder.len(), instruction_syntax));
                     let asm_end = assembly_builder.len();
 
                     source_mappings.push_mapping(original_instruction.code_location(), asm_start, asm_end);
                 }
-                Syntax::Label { dot: _, identifier } => {
+                Node::Label { dot: _, identifier } => {
                     self.labels.insert(identifier.unwrap_identifier(), assembly_builder.len());
                 }
             }
@@ -178,9 +178,9 @@ impl AssemblyBuilder {
 
    
 
-    fn register_label_resolve_address(&mut self, asm_location: usize, label: Syntax) {
+    fn register_label_resolve_address(&mut self, asm_location: usize, label: Node) {
         let label_name;
-        if let Syntax::Label { dot: _, identifier } = label {
+        if let Node::Label { dot: _, identifier } = label {
             if let TokenType::Identifier(l) = identifier.token_type() {
                 label_name = l.clone();
             }

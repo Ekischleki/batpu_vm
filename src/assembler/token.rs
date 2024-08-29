@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use enum_as_inner::EnumAsInner;
+
 use super::code_location::CodeLocation;
 
 #[derive(Debug, Clone)]
@@ -10,11 +12,7 @@ pub struct Token {
 impl Token {
 
     pub fn expect_register(&self) -> u8 {
-        if let TokenType::Register(i) = self.token_type {
-            i
-        } else {
-            panic!("Expected register")
-        }
+        return *self.token_type.as_register().unwrap();
     }
 
     pub fn unwrap_identifier(self) -> String {
@@ -22,6 +20,10 @@ impl Token {
             return i;
         }
         panic!("Expected indentifier");
+    }
+
+    pub fn copy_identifier(&self) -> String {
+        return self.token_type.as_identifier().unwrap().to_owned();
     }
 
     pub fn to(&self, end: &Self) -> CodeLocation {
@@ -53,7 +55,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumAsInner)]
 pub enum TokenType {
     Instr(Instr),
     Identifier(String),
@@ -73,6 +75,8 @@ pub enum TokenType {
     ParamModifier(ParamModifier),
     EOF,
 }
+
+
 
 #[derive(Debug, Clone)]
 pub enum ParamModifier {

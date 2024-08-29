@@ -15,3 +15,9 @@ fn main() {
         cpu.run();
     }
 }
+
+
+enum MyEnum {
+    VariantOne(i32),
+    VariantTwo { value_one: u32, value_two: String },
+}
