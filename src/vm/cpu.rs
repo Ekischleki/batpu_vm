@@ -54,7 +54,7 @@ impl CPU {
         let b = b_o >> 4;
 
         let a = self.regs[a as usize];
-        let adr = (b_o & 0b0000_0111) - (b_o & 0b0000_1000) + a;
+        let adr = (((b_o as i8) << 4) >> 4) as u8 + a;
         return (adr, b);
     }
 

@@ -54,13 +54,17 @@ pub fn replace_defines(compilation: &mut Compilation, mut token_stream: TypeStre
                     Some(r) => {
                         let mut expanded = r.clone();
                         result_stream.append(&mut expanded);
+                        _ = token_stream.next();
+
                     }
-                    None => {} //We don't care about this identifier
+                    None => {
+                        result_stream.push(token_stream.next())
+                    } //We don't care about this identifier
                 }
-                _ = token_stream.next();
             }
             TokenType::EOF => {
                 result_stream.push(token_stream.next());
+                println!("{:#?}", result_stream);
                 return TypeStream::new(result_stream);
             }
             _ => {
@@ -124,9 +128,11 @@ pub fn read_func(compilation: &mut Compilation, token_stream: &mut TypeStream<To
     _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenParen)?;
     let args = read_args(compilation, token_stream);
     _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenCurly)?;
-    let body = read_body(compilation, token_stream);
 
-    Some(Node::Func { func_keyword, identifier, args, body })
+    let body = read_body(compilation, token_stream).into_iter().map(|node| Box::from(node));
+    let body = TypeStream::new(body.collect());
+    
+    Some(Node::Func { func_keyword, identifier, args,  body })
 }
 
 pub fn read_func_call(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Node> {
@@ -192,9 +198,14 @@ pub fn read_body(compilation: &mut Compilation, token_stream: &mut TypeStream<To
 
 pub fn read_args(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Vec<Arg> {
     let mut res = vec![];
+    if let TokenType::ClosedParen = peek_token_type(token_stream) {
+        token_stream.next();
+        return res;
+    }
     loop {
         read_arg(compilation, token_stream).map(|arg| res.push(arg));
         let follow_token = peek_token_type(token_stream);
+
         match follow_token {
             TokenType::ClosedParen => {
                 token_stream.next();
@@ -211,6 +222,7 @@ pub fn read_args(compilation: &mut Compilation, token_stream: &mut TypeStream<To
                 );
                 return res;
             }
+
         }
     }
 }
@@ -218,12 +230,12 @@ pub fn read_args(compilation: &mut Compilation, token_stream: &mut TypeStream<To
 pub fn read_arg(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Arg> {
     let current_token = peek_token_type(token_stream);
     match current_token {
-        TokenType::Register(i) =>  {token_stream.next(); Some(Arg {register: i, modifier: None})}
+        TokenType::Register(i) =>  {Some(Arg {register: i, modifier: None, register_token: token_stream.next()})}
         TokenType::ParamModifier(_) => {
             let modifier = token_stream.next();
             let reg = token_or_diagnostic(compilation, token_stream, TokenType::Register(0))?;
             if let TokenType::Register(i) = reg.token_type() {
-                Some(Arg {register: *i, modifier: Some(modifier)})
+                Some(Arg {register: *i, modifier: Some(modifier), register_token: reg})
             } else {
                 panic!("Expected register");
             }
@@ -249,9 +261,6 @@ pub fn parse(compilation: &mut Compilation, token_stream: TypeStream<Token>) -> 
         match token_type {
             TokenType::Func => {
                 read_func(compilation, &mut token_stream).map(|f| output.push(f));
-            }
-            TokenType::Identifier(_) => {
-                read_func_call(compilation, &mut token_stream).map(|f| output.push(f));
             }
 
             TokenType::EOF => { return output; }

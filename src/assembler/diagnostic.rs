@@ -13,7 +13,10 @@ pub enum DiagnosticType {
 pub enum DiagnosticPipelineLocation {
     Lexing,
     Parsing,
+
     SemanticAnalysis,
+    Access,
+    
     Internal,
     IO,
     Assembling

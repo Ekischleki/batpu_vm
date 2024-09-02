@@ -16,7 +16,7 @@ impl AssemblyBuilder {
         Self { labels: HashMap::new(), label_resolve: vec![] }
     }
 
-    pub fn build_asm(mut self, ast: Vec<Node>, symbol_table: SymbolTable) -> Result<([u8; 2048], SourceMappings), Diagnostic> {
+    pub fn build_asm(mut self, ast: Vec<Node>) -> Result<([u8; 2048], SourceMappings), Diagnostic> {
         let mut source_mappings = SourceMappings::new();
 
         let mut assembly_builder = vec![];

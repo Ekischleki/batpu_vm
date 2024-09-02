@@ -1,26 +1,19 @@
-define cmp sub
-define counter0 r1
-define counter1 r2
-define counter2 r3
-define counter3 r4
-define u8_max r5
+func main(use r2, out r3) {
 
-ldi u8_max 255
-.loop
-adi counter0 1
-brh c .inc_1
-jmp .loop
+zero_to_r3(out r3)
+
+add r0 r0 r2
+add r2 r2 _
 
 
-.inc_1
-adi counter1 1
-brh c .inc_2
-jmp .loop
 
-.inc_2
-adi counter2 1
-brh c .end
-jmp .loop
+add r3 r3 _
 
-.end
-hlt
+
+}
+
+
+func zero_to_r3(out r3) {
+	ldi 
+
+}

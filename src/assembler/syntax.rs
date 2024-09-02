@@ -1,6 +1,6 @@
 use enum_as_inner::EnumAsInner;
 
-use super::{code_location::CodeLocation, symbol_table::{BodyCode, Operation}, token::{Token, TokenType}};
+use super::{code_location::CodeLocation, token::{Token, TokenType}, type_stream::TypeStream};
 #[derive(Debug, EnumAsInner)]
 pub enum Node {
     Instruction {original_instruction: Token, instruction_syntax: InstructionSyntax},
@@ -9,7 +9,7 @@ pub enum Node {
         func_keyword: Token, 
         identifier: Token, 
         args: Vec<Arg>,
-        body: Vec<Node>,
+        body: TypeStream<Box<Node>>,
     },
     FuncCall {
         identifier: Token,
@@ -59,6 +59,7 @@ impl Node {
 #[derive(Debug)]
 pub struct Arg {
     pub register: u8,
+    pub register_token: Token,
     pub modifier: Option<Token>,
 }
 

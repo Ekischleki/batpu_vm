@@ -1,12 +1,13 @@
 
 use std::{panic, path::PathBuf};
 
-use assembly::AssemblyBuilder;
+//use linker::AssemblyBuilder;
 use compilation::Compilation;
 use diagnostic::Diagnostic;
 use file_reader::FileReader;
 use source_mapping::SourceMappings;
 use string_file_reader::StringFileReader;
+use type_stream::TypeStream;
 
 pub mod token;
 pub mod code_location;
@@ -18,11 +19,13 @@ pub mod type_stream;
 pub mod syntax;
 pub mod parser;
 pub mod semantic_analyzer;
-pub mod assembly;
+//pub mod linker;
 pub mod string_file_reader;
 pub mod emulator;
 pub mod source_mapping;
 pub mod symbol_table;
+//pub mod assembler;
+pub mod access_checker;
 #[derive(Debug)]
 pub enum CompilationResult {
     Success {
@@ -62,23 +65,27 @@ pub fn assemble(path: &PathBuf) -> CompilationResult {
         
 
         let ast = parser::parse(&mut compilation, tokens); 
-        semantic_analyzer::analyze(&ast, &mut compilation);
+        let symbol_table = semantic_analyzer::analyze( TypeStream::new(ast), &mut compilation);
 
-        let assembly_builder = AssemblyBuilder::new();
+        //let assembly_builder = AssemblyBuilder::new();
         let compilation_res =
-        match assembly_builder.build_asm(ast) {
-            Ok(asm) => {
-                Some(asm)
-            }
-            Err(d) => {
-                compilation.add_diagnostic(d);
-                None
-            }
-        };
+        /* 
+            match assembly_builder.build_asm(symbol_table) {
+                Ok(asm) => {
+                    Some(asm)
+                }
+                Err(d) => {
+                    compilation.add_diagnostic(d);
+                    None
+                }
+                    
+                    None
+            };
 
+    */None;
         
 
-        if compilation.is_error_free() {
+        if compilation.is_error_free() && compilation_res.is_some() {
             CompilationResult::Success { compilation_res: compilation_res.unwrap(), diagnostics: compilation.diagnostics() }
         }
         else {

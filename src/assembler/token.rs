@@ -82,7 +82,8 @@ pub enum TokenType {
 pub enum ParamModifier {
     Mut,
     In,
-    Out
+    Out,
+    Use,
 }
 
 #[derive(Debug, Clone)]

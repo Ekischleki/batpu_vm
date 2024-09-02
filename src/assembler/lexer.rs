@@ -28,6 +28,7 @@ static KEYWORD_MAPPING: phf::Map<&'static str, &'static TokenType> = phf_map! {
     "mut" => &TokenType::ParamModifier(ParamModifier::Mut),
     "in" => &TokenType::ParamModifier(ParamModifier::In),
     "out" => &TokenType::ParamModifier(ParamModifier::Out),
+    "use" => &TokenType::ParamModifier(ParamModifier::Use),
 
 
     "nop" => &TokenType::Instr(Instr::NOP),
@@ -59,7 +60,6 @@ static KEYWORD_MAPPING: phf::Map<&'static str, &'static TokenType> = phf_map! {
 
     "r0" => &TokenType::Register(0),
     "null" => &TokenType::Register(0),
-    "_" => &TokenType::Register(0),
 
     "r1" => &TokenType::Register(1),
     "r2" => &TokenType::Register(2),
@@ -103,6 +103,8 @@ static DELIM_MAPPING: phf::Map<&'static str, &'static TokenType> = phf_map! {
     "!=" => &TokenType::Condition(Condition::NE),
     "<=" => &TokenType::Condition(Condition::GE),
     ">" => &TokenType::Condition(Condition::LT),
+
+    "_" => &TokenType::Register(0),
 
 
 };

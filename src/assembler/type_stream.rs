@@ -1,13 +1,13 @@
-use std::vec::IntoIter;
+use std::{fmt::Debug, vec::IntoIter};
 
 #[derive(Debug)]
-pub struct TypeStream<T> {
+pub struct TypeStream<T: Debug> {
     tokens: IntoIter<T>,
     next: Option<T>
 }
 
 
-impl<T> Iterator for TypeStream<T> {
+impl<T: Debug> Iterator for TypeStream<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -19,11 +19,16 @@ impl<T> Iterator for TypeStream<T> {
     }
 }
 
-impl<T> TypeStream<T> {
+impl<T: Debug> TypeStream<T> {
 
     pub fn new(tokens: Vec<T>) -> Self{
+
+        Self::from_iter(tokens.into_iter())
+    }
+
+    pub fn from_iter(iter: IntoIter<T>) -> Self {
         let mut res = Self {
-            tokens: tokens.into_iter(),
+            tokens: iter,
             next: None,
         };
         res.next = res.tokens.next();
@@ -34,6 +39,7 @@ impl<T> TypeStream<T> {
         
         match self.next.take() {
             Some(t) => {
+                println!("Consumed {:?}", t);
                 self.next = self.tokens.next();
                 return t;
             }
