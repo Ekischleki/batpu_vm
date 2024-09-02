@@ -23,9 +23,9 @@ pub fn analyze(mut syntax_stream: TypeStream<Node>, compilation: &mut Compilatio
 
     symbol_table.link(compilation);
     {
-        let binding = symbol_table.defined_functions.borrow();
+        let binding = &symbol_table.defined_functions;
         for function in binding.values() {
-            access_checker::check_access(compilation, &symbol_table, function);
+            access_checker::check_access(compilation, &symbol_table, &function.borrow());
         }
     }
 

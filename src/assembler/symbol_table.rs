@@ -16,8 +16,7 @@ pub fn to_body_code(node: Node, symbol_table: &SymbolTable, compilation: &mut Co
     match &node {
         Node::FuncCall { identifier, .. } => {
             let call_ref_name = identifier.token_type().as_identifier().unwrap();
-            let binding = symbol_table.defined_functions.borrow();
-            let opt_ref_func = binding.get(call_ref_name);
+            let opt_ref_func = symbol_table.defined_functions.get(call_ref_name);
 
             if opt_ref_func.is_some() {
 
@@ -177,8 +176,7 @@ impl BodyCode for FunctionCall {
 
     fn get_op(&self, symbol_table: &SymbolTable) -> Vec<Operation> {
 
-        let binding = symbol_table.defined_functions.borrow();
-        let ref_func = binding.get(self.get_ref_func_name()).unwrap();
+        let ref_func = symbol_table.defined_functions.get(self.get_ref_func_name()).unwrap().borrow();
         let func_args = ref_func.node.as_func().unwrap().2;
 
         let mut res = vec![];
@@ -284,7 +282,7 @@ impl Label {
 }
 
 pub struct SymbolTable {
-    pub defined_functions: RefCell<HashMap<String, Function>>,
+    pub defined_functions: HashMap<String, RefCell<Function>>,
 }
 
 
@@ -293,15 +291,14 @@ impl SymbolTable {
 
 
     pub fn new() -> Self {
-        Self { defined_functions: RefCell::new(HashMap::new()) }
+        Self { defined_functions: HashMap::new() }
     }
 
     pub fn link(&mut self, compilation: &mut Compilation) {
 
-        let mut binding = self.defined_functions.borrow_mut();
-        let functions: Vec<_> = binding.values_mut().collect();
+        let functions = self.defined_functions.values().map(|func| func.borrow_mut());
 
-        for function in functions {
+        for mut function in functions {
             function.link_body(self, compilation)
         }
     }
@@ -313,14 +310,14 @@ impl SymbolTable {
             let identifier_location = identifier.code_location().clone(); //For possible error reporting
             let identifier = identifier.copy_identifier();
             let function = Function::new(function_syntax);
-            if let Some(old_func) = self.defined_functions.borrow_mut().insert(identifier, function) {
+            if let Some(old_func) = self.defined_functions.insert(identifier, RefCell::new(function)) {
                 compilation.add_diagnostic(Diagnostic::new(
                     DiagnosticType::Error, 
-                    format!("A function with the name '{}' already exists.", old_func.get_identifier().copy_identifier()), 
+                    format!("A function with the name '{}' already exists.", old_func.borrow().get_identifier().copy_identifier()), 
                     Some(identifier_location), 
                     DiagnosticPipelineLocation::SemanticAnalysis)
                     .with_visualisation(
-                        old_func.get_identifier().code_location().clone(), 
+                        old_func.borrow().get_identifier().code_location().clone(), 
                         "Other function defined here.".to_string())
                 );
                 

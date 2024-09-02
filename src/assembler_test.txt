@@ -1,19 +1,10 @@
-func main(use r2, out r3) {
-
-zero_to_r3(out r3)
-
-add r0 r0 r2
-add r2 r2 _
-
-
+func main(out r3) {
+main(out r3)
 
 add r3 r3 _
-
-
 }
 
 
 func zero_to_r3(out r3) {
-	ldi 
-
+	ldi r3 0
 }
