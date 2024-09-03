@@ -4,6 +4,10 @@ use super::{code_location::CodeLocation, token::{Token, TokenType}, type_stream:
 #[derive(Debug, EnumAsInner)]
 pub enum Node {
     Instruction {original_instruction: Token, instruction_syntax: InstructionSyntax},
+    If {keyword: Token, body: TypeStream<Box<Node>>},
+    IfElse {if_keyword: Token, true_body: TypeStream<Box<Node>>, else_keyword: Token, false_body: TypeStream<Box<Node>>},
+    Loop {keyword: Token, body: TypeStream<Box<Node>>},
+
     Label {dot: Token, identifier: Token},
     Func {
         func_keyword: Token, 
@@ -23,6 +27,15 @@ impl Node {
 
     pub fn get_blame_location(&self) -> CodeLocation {
         match self {
+            Node::If { keyword,.. } => {
+                keyword.code_location().to_owned()
+            }
+            Node::IfElse { if_keyword,.. } => {
+                if_keyword.code_location().to_owned()
+            }
+            Node::Loop { keyword,.. } => {
+                keyword.code_location().to_owned()
+            }
             Node::Func { func_keyword, .. } => {
                 func_keyword.code_location().to_owned()
             }

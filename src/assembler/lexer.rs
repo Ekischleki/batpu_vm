@@ -30,6 +30,14 @@ static KEYWORD_MAPPING: phf::Map<&'static str, &'static TokenType> = phf_map! {
     "out" => &TokenType::ParamModifier(ParamModifier::Out),
     "use" => &TokenType::ParamModifier(ParamModifier::Use),
 
+    "loop" => &TokenType::Loop,
+    "if" => &TokenType::If,
+    "else" => &TokenType::Else,
+
+    "break" => &TokenType::Break,
+    "continue" => &TokenType::Continue,
+
+
 
     "nop" => &TokenType::Instr(Instr::NOP),
     "hlt" => &TokenType::Instr(Instr::HLT),
