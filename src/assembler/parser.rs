@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{Arg, InstructionSyntax, Node}, token::{Condition, ConstValue, Instr, Token, TokenType}, type_stream::TypeStream};
+use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{Arg, InstructionSyntax, Node}, token::{self, Condition, ConstValue, Instr, Token, TokenType}, type_stream::TypeStream};
 
 pub fn peek_token_type(token_stream: &TypeStream<Token>) -> TokenType {
     token_stream.extract(|t| t.token_type().clone())
@@ -94,13 +94,6 @@ pub fn read_define(token_stream: &mut TypeStream<Token>, compilation: &mut Compi
                     Some(define_keyword.code_location().clone()), DiagnosticPipelineLocation::Parsing));
                     return None;
             }
-            TokenType::Identifier(_) => {
-                compilation.add_diagnostic(Diagnostic::new(
-                    DiagnosticType::Error, 
-                    "Defines can't contain other defines. Consider macros!".to_owned(), 
-                    Some(define_keyword.code_location().clone()), DiagnosticPipelineLocation::Parsing));
-                    return None;
-            }
             TokenType::EOF => {
                 compilation.add_diagnostic(Diagnostic::new(
                     DiagnosticType::Error, 
@@ -147,6 +140,10 @@ pub fn read_body(compilation: &mut Compilation, token_stream: &mut TypeStream<To
     loop {
         let token_type = peek_token_type(token_stream);
         match token_type {
+            TokenType::If => {
+
+            }
+
             TokenType::Dot => {
                 match read_label(compilation, token_stream) {
                     Some(l) => {
@@ -346,11 +343,27 @@ fn read_instruction(compilation: &mut Compilation, tokens: &mut TypeStream<Token
         Instr::RET => {
             Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::RET })
         }
-
-        _ => todo!()
+        Instr::STR => {
+            let (a, source, offset) = read_ab_offset(compilation, tokens)?;
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::STR { a, source, offset } })
+        }
+        Instr::LOD => {
+            let (a, dest, offset) = read_ab_offset(compilation, tokens)?;
+            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::LOD { a, dest, offset } })
+        }
 
     }
     //todo!()
+}
+
+fn read_ab_offset(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<(Token, Token, Token)> {
+    let (a, b) = read_ab(compilation, token_stream)?;
+    let offset = if let TokenType::ConstValue(ConstValue::I8(_)) = peek_token_type(token_stream) {
+        token_stream.next()
+    } else {
+        Token::new(TokenType::ConstValue(ConstValue::I8(0)), b.code_location().to_owned())
+    };
+    Some((a, b, offset))
 }
 
 fn read_immediate(compilation: &mut Compilation, tokens: &mut TypeStream<Token>) -> Option<(Token, Token)> {
