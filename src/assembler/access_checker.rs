@@ -82,7 +82,7 @@ impl RegisterManager {
             if register_tracker.constraint.is_unavailable() {
                 compilation.add_diagnostic(Diagnostic::new(
                     DiagnosticType::Error, 
-                    format!("Register r{} cannot be read, as it is not available in the current scope. Consider adding it as a parameter.", register), 
+                    format!("Register r{} cannot be used, as it is not available in the current scope. Consider adding it as a parameter.", register), 
                     Some(blame_location.to_owned()), 
                     DiagnosticPipelineLocation::Access));
                     return;
