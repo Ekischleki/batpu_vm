@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{Arg, InstructionSyntax, Node}, token::{self, Condition, ConstValue, Instr, Token, TokenType}, type_stream::TypeStream};
+use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{Arg, InstructionSyntax, Node}, token::{Condition, ConstValue, Instr, Token, TokenType}, type_stream::TypeStream};
 
 pub fn peek_token_type(token_stream: &TypeStream<Token>) -> TokenType {
     token_stream.extract(|t| t.token_type().clone())
@@ -35,19 +35,6 @@ pub fn replace_defines(compilation: &mut Compilation, mut token_stream: TypeStre
                 if let Some(define_tokens) = define_tokens {
                     defined_tokens.insert(name, define_tokens);
                 }
-            }
-            TokenType::Dot => {
-                result_stream.push(token_stream.next());
-                let next_token = token_stream.next();
-                if let TokenType::Identifier(n) = next_token.token_type() {
-                    if defined_tokens.contains_key(n) {
-                        compilation.add_diagnostic(Diagnostic::new(
-                            DiagnosticType::Info, 
-                            "Didn't expand this defined keyword, as it is a label.".to_owned(), 
-                            Some(next_token.code_location().clone()), DiagnosticPipelineLocation::Parsing));
-                    }
-                }
-                result_stream.push(next_token);
             }
             TokenType::Identifier(i) => {
                 match defined_tokens.get(&i) {
@@ -135,13 +122,55 @@ pub fn read_func_call(compilation: &mut Compilation, token_stream: &mut TypeStre
     Some(Node::FuncCall { identifier, args })
 }
 
+fn read_condition(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Token>  {
+    if !expect_token(compilation, token_stream, TokenType::Condition(Condition::EQ)) {
+        return None;
+    }
+    Some(token_stream.next())
+}
+
+fn to_box<T>(vec: Vec<T>) -> Vec<Box<T>> {
+    vec
+    .into_iter()
+    .map(|t| Box::new(t))
+    .collect()
+}
+
+fn read_if_else(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Node> {
+    let if_keyword = token_stream.next();
+    let condition = read_condition(compilation, token_stream)?;
+    _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenCurly)?;
+
+    let if_body = read_body(compilation, token_stream);
+
+    let has_else_token = peek_token_type(token_stream).is_else();
+    if !has_else_token {
+        return Some(Node::If { keyword: if_keyword, condition, body: TypeStream::new(to_box(if_body)) });
+    }
+    let else_keyword = token_stream.next();
+    _ = token_or_diagnostic(compilation, token_stream, TokenType::OpenCurly)?;
+
+    let else_body = read_body(compilation, token_stream);
+    Some(Node::IfElse { if_keyword, 
+        condition, 
+        if_body: TypeStream::new(to_box(if_body)), 
+        else_keyword, 
+        else_body: TypeStream::new(to_box(else_body)) }
+    )
+}
+
 pub fn read_body(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Vec<Node> {
     let mut output = vec![];
     loop {
         let token_type = peek_token_type(token_stream);
         match token_type {
             TokenType::If => {
-
+                match read_if_else(compilation, token_stream) {
+                    Some(i) => {
+                        output.push(i);
+                    }
+                    _ => {}
+                }
             }
 
             TokenType::Dot => {

@@ -4,8 +4,8 @@ use super::{code_location::CodeLocation, token::{Token, TokenType}, type_stream:
 #[derive(Debug, EnumAsInner)]
 pub enum Node {
     Instruction {original_instruction: Token, instruction_syntax: InstructionSyntax},
-    If {keyword: Token, body: TypeStream<Box<Node>>},
-    IfElse {if_keyword: Token, true_body: TypeStream<Box<Node>>, else_keyword: Token, false_body: TypeStream<Box<Node>>},
+    If {keyword: Token, condition: Token, body: TypeStream<Box<Node>>},
+    IfElse {if_keyword: Token, condition: Token, if_body: TypeStream<Box<Node>>, else_keyword: Token, else_body: TypeStream<Box<Node>>},
     Loop {keyword: Token, body: TypeStream<Box<Node>>},
 
     Label {dot: Token, identifier: Token},
