@@ -1,18 +1,58 @@
 
 use enum_as_inner::EnumAsInner;
 
-use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, symbol_table::{Function, Operation, SymbolTable}, syntax::{Arg, Node}, token::ParamModifier};
+use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, symbol_table::{BodyCode, BranchInstruction, Function, Operation, SymbolTable}, syntax::{Arg, Node}, token::ParamModifier};
 
 pub fn check_access(compilation: &mut Compilation, symbol_table: &SymbolTable, function: &Function) {
     let mut register_manager = RegisterManager::new(function.node.as_func().unwrap().2);
-
-    for body_code in &function.body_code { //TODO! Branching and loops and jumps and all
-        let ops = body_code.get_op(symbol_table);
-        register_manager.do_ops(&ops, &body_code.get_node().get_blame_location(), compilation);
-    }
+    check_code_access(compilation, symbol_table, &mut register_manager, &function.body_code);
+    
 
     
 
+}
+
+fn check_code_access(compilation: &mut Compilation, symbol_table: &SymbolTable, register_manager: &mut RegisterManager, code: &Vec<Box<dyn BodyCode>>) {
+    for body_code in code { //TODO! Branching and loops and jumps and all
+
+        match body_code.get_node() {
+            Node::FuncCall { .. } 
+            | Node::Instruction { .. } => {
+                let ops = body_code.get_op(symbol_table);
+                register_manager.do_ops(&ops, &body_code.get_node().get_blame_location(), compilation);
+            }
+            Node::If { .. }
+            | Node::IfElse { .. } => {
+                let branch_instruction = body_code.as_any().downcast_ref::<BranchInstruction>().expect("Expected branch instruction");
+                if branch_instruction.last_is_guaranteed {
+
+                    check_code_access(compilation, symbol_table, register_manager, &branch_instruction.branches[branch_instruction.branches.len() - 1]);
+
+                    for branch in &branch_instruction.branches[..branch_instruction.branches.len() - 1] {
+
+                        let mut transaction = register_manager.start_transaction();
+                        check_code_access(compilation, symbol_table, &mut transaction, branch);
+
+                        register_manager.merge(&transaction); //I'd rather merge all at once, so it makes more sense, but this works
+                    }
+
+                } else {
+                    for branch in &branch_instruction.branches {
+
+                        let transaction = register_manager.start_transaction();
+                        check_code_access(compilation, symbol_table, register_manager, branch);
+
+                        register_manager.merge(&transaction); //I'd rather merge all at once, so it makes more sense, but this works
+                    }
+                }
+            }
+
+            _ => {
+                panic!()
+            }
+        }
+        
+    }
 }
 
 pub fn step_until(compilation: &mut Compilation, syntax: &Vec<Node>) {
@@ -35,11 +75,33 @@ struct RegisterTracker {
     pub status: RegisterStatus,
     pub constraint: Constraint,
 }
+#[derive(Clone, Copy)]
 struct RegisterManager {
     register_status: [RegisterTracker; 16]
 }
 
 impl RegisterManager {
+    pub fn start_transaction(&self) -> Self {
+        self.clone()
+    }
+
+    pub fn merge(&mut self, branch: &Self) {
+        for i in 0..16 {
+            self.register_status[i] = Self::merge_tracker(self.register_status[i], branch.register_status[i]);
+        }
+    }
+
+    fn merge_tracker(a: RegisterTracker, b: RegisterTracker) -> RegisterTracker {
+        assert_eq!(a.constraint, b.constraint);
+        if let RegisterStatus::Uncertain = a.status {
+            a
+        } else if let RegisterStatus::Uncertain = b.status {
+            b
+        } else {
+            a
+        }
+    }
+
     pub fn new(args: &Vec<Arg>) -> Self {
         let mut register_status = [RegisterTracker {status: RegisterStatus::Uncertain, constraint: Constraint::Unavailable}; 16];
 
@@ -121,7 +183,7 @@ enum RegisterStatus {
     Uncertain, //Cannot be read, only written, to change its state to known
     Certain, //Can be read and written to
 }
-#[derive(Clone, Copy, EnumAsInner)]
+#[derive(Clone, Copy, EnumAsInner, PartialEq, Debug)]
 enum Constraint {
     Readonly,
     Writable,
