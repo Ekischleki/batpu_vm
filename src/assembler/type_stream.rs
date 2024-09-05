@@ -35,11 +35,12 @@ impl<T: Debug> TypeStream<T> {
         return res;
     }
 
+    
     pub fn next(&mut self) -> T {
         
         match self.next.take() {
             Some(t) => {
-                println!("Consumed {:?}", t);
+                println!("Consumed {:#?}", t);
                 self.next = self.tokens.next();
                 return t;
             }

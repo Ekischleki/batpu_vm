@@ -1,19 +1,20 @@
-use std::{cell::RefCell, collections::HashMap, ops::Deref};
+use std::{any::Any, cell::RefCell, collections::HashMap};
 
 use crate::assembler::token::ParamModifier;
 
-use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{InstructionSyntax, Node}, token::Token};
+use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{InstructionSyntax, Node}, token::Token, type_stream::TypeStream};
 
 //This code is a pain
-pub trait BodyCode {
+pub trait BodyCode : Any {
     fn get_op(&self, symbol_table: &SymbolTable) -> Vec<Operation>;
     fn get_location(&self, symbol_table: &SymbolTable) -> CodeLocation;
     fn get_node(&self) -> &Node;
+    fn as_any(&self) -> &dyn Any;
 }
 
 
-pub fn to_body_code(node: Node, symbol_table: &SymbolTable, compilation: &mut Compilation) -> Option<Box<dyn BodyCode>> {
-    match &node {
+pub fn to_body_code(mut node: Node, symbol_table: &SymbolTable, compilation: &mut Compilation) -> Option<Box<dyn BodyCode>> {
+    match &mut node {
         Node::FuncCall { identifier, .. } => {
             let call_ref_name = identifier.token_type().as_identifier().unwrap();
             let opt_ref_func = symbol_table.defined_functions.get(call_ref_name);
@@ -34,6 +35,22 @@ pub fn to_body_code(node: Node, symbol_table: &SymbolTable, compilation: &mut Co
                     DiagnosticPipelineLocation::SemanticAnalysis));
                 None
             }
+        }
+
+        Node::If { body, .. } => {
+            Some(Box::new(BranchInstruction {
+                    branches: vec![ into_body_code(symbol_table, compilation, body) ],
+                    node,
+                    last_is_guaranteed: false
+                }))
+        }
+
+        Node::IfElse { if_body, else_body, .. } => {
+            Some(Box::new(BranchInstruction {
+                branches: vec![ into_body_code(symbol_table, compilation, if_body), into_body_code(symbol_table, compilation, else_body) ],
+                node,
+                last_is_guaranteed: true
+            }))
         }
 
         Node::Instruction { .. } => {
@@ -75,9 +92,10 @@ pub struct BodyInstruction {
     pub instruction_node: Node,
 }
 
-
-
 impl BodyCode for BodyInstruction {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn get_node(&self) -> &Node {
         &self.instruction_node
     }
@@ -170,6 +188,9 @@ impl FunctionCall {
 }
 
 impl BodyCode for FunctionCall {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     fn get_node(&self) -> &Node {
         &self.call_node
     }
@@ -217,14 +238,12 @@ impl BodyCode for FunctionCall {
 
 pub struct Function {
     pub node: Node,
-    pub inner_labels: HashMap<String, Label>,
     pub body_code: Vec<Box<dyn BodyCode>>,
-
 }
 
 impl Function {
     pub fn new(node: Node) -> Self {
-        Self { node, inner_labels: HashMap::new(), body_code: vec![]}
+        Self { node, body_code: vec![]}
     }
 
    
@@ -235,49 +254,62 @@ impl Function {
 
     pub fn link_body(&mut self, symbol_table: &SymbolTable, compilation: &mut Compilation) {
         let (_, _, _, body_code) = self.node.as_func_mut().unwrap();
-        for node in body_code {
-            match &node.deref() {
-                Node::Label { identifier, .. } => {
-                    let label_name = identifier.copy_identifier();
-                    let label = Label::new(self.body_code.len() as u64, *node);
-                    if let Some(old_label) = self.inner_labels.get(&label_name) {
-                        compilation.add_diagnostic(
-                            Diagnostic::new(
-                                DiagnosticType::Error, 
-                                format!("The label '{}' has already been defined.", label_name), 
-                                Some(label.node.get_blame_location()), 
-                                DiagnosticPipelineLocation::SemanticAnalysis)
-                                .with_visualisation(old_label.node.get_blame_location(), "Other instance of label with the same name is defined here".to_string())
-                        )
-                    }
-                }
-                _ => {
-                    if let Some(code) = to_body_code(*node, symbol_table, compilation) {
-                        self.body_code.push(Box::from(code));
-                    }
-                }
-            }
-            
+        let body_code = into_body_code(symbol_table, compilation, body_code);
+        self.body_code = body_code;
+    }
+}
+
+fn into_body_code(symbol_table: &SymbolTable, compilation: &mut Compilation, body_code: &mut TypeStream<Box<Node>> ) -> Vec<Box<dyn BodyCode>> {
+    let mut res = vec![];
+    for node in body_code {
+        if let Some(code) = to_body_code(*node, symbol_table, compilation) {
+            res.push(Box::from(code));
         }
     }
+    res
 }
-
-pub struct Label {
+pub struct BranchInstruction {
     pub node: Node,
-    pub instr_id: u64,
+    pub branches: Vec<Vec<Box<dyn BodyCode>>>,
+    pub last_is_guaranteed: bool,
 }
 
-impl Label {
-    pub fn new(next_instr_id: u64, node: Node) -> Self {
-        Self { node, instr_id: next_instr_id }
+impl BodyCode for BranchInstruction {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn get_op(&self, _symbol_table: &SymbolTable) -> Vec<Operation> {
+        panic!("Invalid operation")
     }
 
-    pub fn name(&self) -> String {
-        self.node
-        .as_label()
-        .unwrap()
-        .1 //Identifier
-        .copy_identifier()
+    fn get_location(&self, _symbol_table: &SymbolTable) -> CodeLocation {
+        panic!("Invalid operation")
+    }
+
+    fn get_node(&self) -> &Node {
+        &self.node
+    }
+}
+
+pub struct LoopInstruction {
+    pub node: Node
+}
+
+
+impl BodyCode for LoopInstruction {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn get_op(&self, _symbol_table: &SymbolTable) -> Vec<Operation> {
+        panic!("Invalid operation")
+    }
+
+    fn get_location(&self, _symbol_table: &SymbolTable) -> CodeLocation {
+        panic!("Invalid operation")
+    }
+
+    fn get_node(&self) -> &Node {
+        &self.node
     }
 }
 
