@@ -145,12 +145,11 @@ pub fn read_body(compilation: &mut Compilation, token_stream: &mut TypeStream<To
             }
 
             TokenType::Dot => {
-                match read_label(compilation, token_stream) {
-                    Some(l) => {
-                        output.push(l);
-                    }
-                    _ => {}
-                }
+                compilation.add_diagnostic(Diagnostic::new(
+                    DiagnosticType::Error,
+                    format!("Labels are not supported. Consider loops, if-elses and function calls."), 
+                    Some(token_stream.next().code_location().to_owned()), 
+                    DiagnosticPipelineLocation::Parsing))
             } 
 
             TokenType::Identifier(_) => {
@@ -328,17 +327,28 @@ fn read_instruction(compilation: &mut Compilation, tokens: &mut TypeStream<Token
         }
 
         Instr::JMP => {
-            let label = Box::new(read_label(compilation, tokens)?);
-            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::JMP { label } })
-        }
+            compilation.add_diagnostic(Diagnostic::new(
+                DiagnosticType::Error, 
+                format!("Jumps are not a supported instruction (as it might confuse the compiler). Consider using the loop, or if-else statements"), 
+                Some(instr_token.code_location().to_owned()), 
+                DiagnosticPipelineLocation::Parsing));
+                None
+        }   
         Instr::BRH => {
-            let condition = read_condition(compilation, tokens)?;
-            let label = Box::new(read_label(compilation, tokens)?);
-            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::BRH { condition, label }  })
+            compilation.add_diagnostic(Diagnostic::new(
+                DiagnosticType::Error, 
+                format!("Branches are not a supported instruction (as it might confuse the compiler). Consider using the loop, or if-else statements."), 
+                Some(instr_token.code_location().to_owned()), 
+                DiagnosticPipelineLocation::Parsing));
+                None
         }
         Instr::CAL => {
-            let label = Box::new(read_label(compilation, tokens)?);
-            Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::CAL { label } })
+            compilation.add_diagnostic(Diagnostic::new(
+                DiagnosticType::Error, 
+                format!("Calls are not a supported instruction (as it might confuse the compiler). Consider creating a function and calling it like this: `function()`"), 
+                Some(instr_token.code_location().to_owned()), 
+                DiagnosticPipelineLocation::Parsing));
+                None
         }
         Instr::RET => {
             Some(Node::Instruction { original_instruction: instr_token, instruction_syntax: InstructionSyntax::RET })
@@ -397,23 +407,6 @@ fn read_constant(compilation: &mut Compilation, tokens: &mut TypeStream<Token>) 
         return None;
     }
     Some(tokens.next())
-}
-fn read_condition(compilation: &mut Compilation, tokens: &mut TypeStream<Token>) -> Option<Token>  {
-    if !expect_token(compilation, tokens, TokenType::Condition(Condition::EQ)) {
-        return None;
-    }
-    Some(tokens.next())
-}
-
-fn read_label(compilation: &mut Compilation, tokens: &mut TypeStream<Token>) -> Option<Node> {
-    let dot = tokens.next();
-    if !expect_token(compilation, tokens, TokenType::Identifier(String::new())) {
-        return None;
-    }
-    let identifier = tokens.next();
-    Some(
-        Node::Label { dot, identifier }
-    )
 }
 
 fn peek_location(token_stream: &TypeStream<Token>) -> CodeLocation {
