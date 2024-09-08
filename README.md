@@ -43,11 +43,76 @@ Functions take registers as parameters which they can add modifiers on. These mo
 There are following modifiers:
 
   - *none*: Register is readonly inside the function and stays certain after the function call. *Use for constant function arguments.*
+    ```sy
+    func main() {
+      ldi r1 1
+      example_none(r1)
+      //Here, r1 will still be 1, and is therefore certain
+    }
+    
+    func example_none(r1) {
+      adi r1 5 //Error: Can't write to r1 as it is read-only
+      cmp r1 r0 //We can however read from r1
+      if eq {
+        hlt
+      }
+    }
+    ```
   - mut: Register is certain for the function and caller after the function call. *Use for function arguments which change during the function, but which's changes are expected.*
+    ```sy
+    func main() {
+      ldi r1 1
+      example_mut(mut r1)
+      //Here, the side effects of example_mut are intended. r1 is still certain and can be read
+    }
+    
+    func example_mut(mut r1) {
+      inc r1
+    }
+    ```
   - in: Register is certain for the function, but will turn uncertain for the caller. *Use for function arguments, which might change during the function.*
+    ```sy
+    func main() {
+      ldi r1 1
+      example_in(in r1)
+      //Here, the side effects of example_in are not intended to be read by the caller. r1 is still no longer certain
+      adi r1 1 //Error: r1 is not certain and cannot be read.
+    }
+    
+    func example_in(in r1) {
+      cmp r1 r0
+      if eq {
+        ldi r1 42
+        str r1 r0
+      }
+    }
+    ```
   - out: Register is uncertain for the function, but will be certain for the caller. *Use for function return values.*
+    ```sy
+    func main() {
+      example_out(out r1)
+      //Here, r1 is an out value and is meant to be read.
+    }
+    
+    func example_out(out r1) {
+      inc r1 //Error: r1 is not certain and cannot be read.
+      ldi r1 42
+      lod r1 r1
+    }
+    ```
   - use: Register is uncertain for the function and for its caller. *Use for temporary values inside the function.*
+    ```sy
+    func main() {
+      example_use(use r1)
+      //Here, r1 is an out value and is meant to be read.
+    }
+    
+    func example_use(use r1) {
+      ldi r1 42
+      lod r1 r1
+      cmp r1 r0
+      
+    }
+    ```
 
 
-
-<Example here>
