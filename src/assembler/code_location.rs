@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodeLocation {
     pub path: PathBuf,
     pub section: Option<Section>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Section { pub location_begin: u64, pub location_end: u64 }
 
 impl CodeLocation {

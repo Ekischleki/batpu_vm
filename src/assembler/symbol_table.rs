@@ -2,7 +2,7 @@ use std::{any::Any, cell::RefCell, collections::HashMap};
 
 use crate::assembler::token::ParamModifier;
 
-use super::{code_location::CodeLocation, compilation::Compilation, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{InstructionSyntax, Node}, token::Token, type_stream::TypeStream};
+use super::{code_location::CodeLocation, compilation::Compilation, compiler::{AsmInstruction, Assembly, Compiler}, diagnostic::{Diagnostic, DiagnosticPipelineLocation, DiagnosticType}, syntax::{InstructionSyntax, Node}, token::{Condition, Token}, type_stream::TypeStream};
 
 //This code is a pain
 pub trait BodyCode : Any {
@@ -10,6 +10,7 @@ pub trait BodyCode : Any {
     fn get_location(&self, symbol_table: &SymbolTable) -> CodeLocation;
     fn get_node(&self) -> &Node;
     fn as_any(&self) -> &dyn Any;
+    fn to_assembly(&self, assembly: &mut Vec<Assembly>, compiler: &mut Compiler);
 }
 
 
@@ -37,17 +38,17 @@ pub fn to_body_code(mut node: Node, symbol_table: &SymbolTable, compilation: &mu
             }
         }
 
-        Node::If { body, .. } => {
+        Node::If { body, condition, .. } => {
             Some(Box::new(BranchInstruction {
-                    branches: vec![ into_body_code(symbol_table, compilation, body) ],
+                    branches: vec![ (condition.token_type().as_condition().unwrap().to_owned(), into_body_code(symbol_table, compilation, body)) ],
                     node,
                     last_is_guaranteed: false
                 }))
         }
 
-        Node::IfElse { if_body, else_body, .. } => {
+        Node::IfElse { if_body, else_body, condition, .. } => {
             Some(Box::new(BranchInstruction {
-                branches: vec![ into_body_code(symbol_table, compilation, if_body), into_body_code(symbol_table, compilation, else_body) ],
+                branches: vec![ (condition.token_type().as_condition().unwrap().to_owned(), into_body_code(symbol_table, compilation, if_body)), (Condition::EQ, into_body_code(symbol_table, compilation, else_body)) ],
                 node,
                 last_is_guaranteed: true
             }))
@@ -154,9 +155,6 @@ impl BodyCode for BodyInstruction {
                     Operation::ReadReg(a.expect_register()),
                     Operation::WriteReg(a.expect_register())
                     ],
-                InstructionSyntax::JMP { label: _ } => vec![],
-                InstructionSyntax::BRH { label: _ , condition: _} => vec![],
-                InstructionSyntax::CAL { label: _ } => vec![],
                 InstructionSyntax::RET => vec![],
                 InstructionSyntax::LOD { a, dest, offset: _ } => 
                 vec![
@@ -175,6 +173,51 @@ impl BodyCode for BodyInstruction {
         let (token, _) = self.instruction_node.as_instruction().unwrap();
         return token.code_location().clone();
     }
+    
+    fn to_assembly(&self, assembly: &mut Vec<Assembly>, _compiler: &mut Compiler) {
+        let (_, instruction_syntax) = self.instruction_node.as_instruction().unwrap();
+
+        let instruction = match instruction_syntax {
+            InstructionSyntax::ADD { a, b, dest } => 
+                AsmInstruction::ADD { a: a.expect_register(), b: b.expect_register(), dest: dest.expect_register() },
+
+            InstructionSyntax::SUB { a, b, dest } =>
+                AsmInstruction::SUB { a: a.expect_register(), b: b.expect_register(), dest: dest.expect_register() },
+
+            InstructionSyntax::NOR { a, b, dest } =>
+                AsmInstruction::NOR { a: a.expect_register(), b: b.expect_register(), dest: dest.expect_register() },
+
+            InstructionSyntax::AND { a, b, dest } =>
+                AsmInstruction::AND { a: a.expect_register(), b: b.expect_register(), dest: dest.expect_register() },
+
+            InstructionSyntax::XOR { a, b, dest } =>
+                AsmInstruction::AND { a: a.expect_register(), b: b.expect_register(), dest: dest.expect_register() },
+
+            InstructionSyntax::RSH { a, dest } =>
+                AsmInstruction::RSH { a: a.expect_register(), dest: dest.expect_register() },
+
+            InstructionSyntax::LDI { a, immediate } => 
+                AsmInstruction::LDI { a: a.expect_register(), immediate: immediate.expect_constant() },
+
+            InstructionSyntax::ADI { a, immediate } => 
+                AsmInstruction::ADI { a: a.expect_register(), immediate: immediate.expect_constant() },
+
+            InstructionSyntax::RET => AsmInstruction::RET,
+
+            InstructionSyntax::NOP => AsmInstruction::NOP,
+
+            InstructionSyntax::HLT => AsmInstruction::HLT,
+
+            InstructionSyntax::LOD { a, dest, offset } => AsmInstruction::LOD { a: a.expect_register(), dest: dest.expect_register(), offset: offset.expect_constant() as i8 },
+
+            InstructionSyntax::STR { a, source, offset } => AsmInstruction::STR { a: a.expect_register(), source: source.expect_register(), offset: offset.expect_constant() as i8 },
+
+
+        };
+
+        assembly.push(Assembly::Instruction(instruction));
+    
+    }
 }
 
 pub struct FunctionCall {
@@ -188,6 +231,14 @@ impl FunctionCall {
 }
 
 impl BodyCode for FunctionCall {
+    fn to_assembly(&self, assembly: &mut Vec<Assembly>, compiler: &mut Compiler) {
+        let label = compiler.get_func_label(self.call_node.as_func_call().unwrap().0.token_type().as_identifier().unwrap());
+
+        assembly.push(
+            Assembly::Instruction(AsmInstruction::CAL { label })
+        );
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -235,7 +286,6 @@ impl BodyCode for FunctionCall {
         identifier.code_location().clone()
     }
 }
-
 pub struct Function {
     pub node: Node,
     pub body_code: Vec<Box<dyn BodyCode>>,
@@ -270,7 +320,7 @@ fn into_body_code(symbol_table: &SymbolTable, compilation: &mut Compilation, bod
 }
 pub struct BranchInstruction {
     pub node: Node,
-    pub branches: Vec<Vec<Box<dyn BodyCode>>>,
+    pub branches: Vec<(Condition, Vec<Box<dyn BodyCode>>)>,
     pub last_is_guaranteed: bool,
 }
 
@@ -288,6 +338,39 @@ impl BodyCode for BranchInstruction {
 
     fn get_node(&self) -> &Node {
         &self.node
+    }
+    
+    fn to_assembly(&self, assembly: &mut Vec<Assembly>, compiler: &mut Compiler) {
+        if self.last_is_guaranteed {
+            todo!("Else statements")
+        }
+        let end_label = compiler.next_label();
+        for (branch_condition, branch_code) in &self.branches {
+            let next_unequal = compiler.next_label();
+            assembly.push(
+                Assembly::Instruction(
+                    AsmInstruction::BRH { condition: branch_condition.invert(), label: next_unequal }
+                )
+            );
+
+            for code in branch_code {
+                code.as_ref().to_assembly(assembly, compiler);
+            }
+
+            assembly.push(
+                Assembly::Instruction(
+                    AsmInstruction::JMP { label: end_label }
+                )
+            );
+
+            assembly.push(
+                Assembly::Label(next_unequal)
+            );
+        }
+        assembly.push(
+            Assembly::Label(end_label)
+        );
+
     }
 }
 
@@ -310,6 +393,10 @@ impl BodyCode for LoopInstruction {
 
     fn get_node(&self) -> &Node {
         &self.node
+    }
+    
+    fn to_assembly(&self, assembly: &mut Vec<Assembly>, compiler: &mut Compiler) {
+        todo!()
     }
 }
 

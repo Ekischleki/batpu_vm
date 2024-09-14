@@ -152,6 +152,7 @@ pub fn tokenise(file_reader: &mut dyn FileReader, current_file: &PathBuf, compil
         
         
         match current_char {
+            /* 
             '"' => {
                 match read_string(file_reader, current_file) {
                     Ok(s) => {
@@ -162,6 +163,7 @@ pub fn tokenise(file_reader: &mut dyn FileReader, current_file: &PathBuf, compil
                     }
                 }
             }
+            */
             '/' => {
                 loop {
                     let comment_char;
@@ -417,7 +419,7 @@ fn read_keyword(file_reader: &mut dyn FileReader, current_file: &PathBuf) -> Res
         }
     }
 }
-
+/*
 fn read_string(file_reader: &mut dyn FileReader, current_file: &PathBuf) -> Result<Token, Diagnostic> {
 
     let location_begin = file_reader.get_position();
@@ -487,3 +489,4 @@ fn read_string(file_reader: &mut dyn FileReader, current_file: &PathBuf) -> Resu
                 location_begin, 
                 file_reader.get_position())));
 }
+ */

@@ -88,9 +88,11 @@ pub enum InstructionSyntax {
     RSH{a: Token, dest: Token},
     LDI{a: Token, immediate: Token},
     ADI{a: Token, immediate: Token},
+    /*
     JMP{label: Box<Node>},
     BRH{condition: Token, label: Box<Node>},
     CAL{label: Box<Node>},
+    */
     RET,
     LOD{a: Token, dest: Token, offset: Token},
     STR{a: Token, source: Token, offset: Token}
@@ -99,6 +101,7 @@ pub enum InstructionSyntax {
 
 
 impl InstructionSyntax {
+    /*
     pub fn get_label(&self) -> Option<&String> {
         match self {
             Self::JMP { label } => label.as_ref().get_identifier(),
@@ -107,7 +110,7 @@ impl InstructionSyntax {
             _ => {None}
         }
     }
-
+    */
     
 
 }

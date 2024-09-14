@@ -4,12 +4,16 @@ use enum_as_inner::EnumAsInner;
 
 use super::code_location::CodeLocation;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
     code_location: CodeLocation,
     token_type: TokenType
 }
 impl Token {
+
+    pub fn expect_constant(&self) -> u8 {
+        return self.token_type.as_const_value().unwrap().bits_as_u8();
+    }
 
     pub fn expect_register(&self) -> u8 {
         return *self.token_type.as_register().unwrap();
@@ -55,7 +59,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone, EnumAsInner)]
+#[derive(Debug, Clone, EnumAsInner, PartialEq, Eq)]
 pub enum TokenType {
     Instr(Instr),
     Identifier(String),
@@ -83,7 +87,7 @@ pub enum TokenType {
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParamModifier {
     Mut,
     In,
@@ -91,18 +95,37 @@ pub enum ParamModifier {
     Use,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConstValue {
     U8(u8),
     I8(i8),
-    String(String)
 }
-#[derive(Debug, Clone)]
+
+impl ConstValue {
+    pub fn bits_as_u8(&self) -> u8 {
+        match self {
+            Self::U8(v) => *v,
+            Self::I8(v) => *v as u8,
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Condition {
     EQ,
     NE,
     GE,
     LT
+}
+
+impl Condition {
+    pub fn invert(&self) -> Self {
+        match self {
+            Self::EQ => Self::NE,
+            Self::NE => Self::EQ,
+            Self::GE => Self::LT,
+            Self::LT => Self::GE
+        }
+    }
 }
 
 impl Condition {
@@ -117,7 +140,7 @@ impl Condition {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Instr {
     NOP,
     HLT,

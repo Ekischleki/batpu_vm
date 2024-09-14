@@ -3,6 +3,7 @@ use std::{panic, path::PathBuf};
 
 //use linker::AssemblyBuilder;
 use compilation::Compilation;
+use compiler::Compiler;
 use diagnostic::Diagnostic;
 use file_reader::FileReader;
 use source_mapping::SourceMappings;
@@ -26,6 +27,7 @@ pub mod source_mapping;
 pub mod symbol_table;
 //pub mod assembler;
 pub mod access_checker;
+pub mod compiler;
 #[derive(Debug)]
 pub enum CompilationResult {
     Success {
@@ -67,6 +69,10 @@ pub fn assemble(path: &PathBuf) -> CompilationResult {
         let ast = parser::parse(&mut compilation, tokens); 
         let symbol_table = semantic_analyzer::analyze( TypeStream::new(ast), &mut compilation);
 
+        let compiler = Compiler::new(symbol_table);
+        let assembly = compiler.to_assembly();
+
+        print!("{:#?}", assembly);
         //let assembly_builder = AssemblyBuilder::new();
         let compilation_res =
         /* 

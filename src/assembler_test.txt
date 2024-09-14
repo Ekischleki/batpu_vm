@@ -1,10 +1,10 @@
 func main(out r3) {
+    ldi r3 0
     if eq {
         zero_to_r3(in r3)
-    } else {
-        zero_to_r3(out r3)
     }
     add r3 r3 _
+    ret
 }
 
 

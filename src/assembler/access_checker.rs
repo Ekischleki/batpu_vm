@@ -26,9 +26,9 @@ fn check_code_access(compilation: &mut Compilation, symbol_table: &SymbolTable, 
                 let branch_instruction = body_code.as_any().downcast_ref::<BranchInstruction>().expect("Expected branch instruction");
                 if branch_instruction.last_is_guaranteed {
 
-                    check_code_access(compilation, symbol_table, register_manager, &branch_instruction.branches[branch_instruction.branches.len() - 1]);
+                    check_code_access(compilation, symbol_table, register_manager, &branch_instruction.branches[branch_instruction.branches.len() - 1].1);
 
-                    for branch in &branch_instruction.branches[..branch_instruction.branches.len() - 1] {
+                    for (_condition, branch) in &branch_instruction.branches[..branch_instruction.branches.len() - 1] {
 
                         let mut transaction = register_manager.start_transaction();
                         check_code_access(compilation, symbol_table, &mut transaction, branch);
@@ -37,7 +37,7 @@ fn check_code_access(compilation: &mut Compilation, symbol_table: &SymbolTable, 
                     }
 
                 } else {
-                    for branch in &branch_instruction.branches {
+                    for (_condition, branch) in &branch_instruction.branches {
 
                         let transaction = register_manager.start_transaction();
                         check_code_access(compilation, symbol_table, register_manager, branch);
@@ -55,20 +55,6 @@ fn check_code_access(compilation: &mut Compilation, symbol_table: &SymbolTable, 
     }
 }
 
-pub fn step_until(compilation: &mut Compilation, syntax: &Vec<Node>) {
-
-}
-
-
-fn setup_funcs(symbol_table: &SymbolTable) {
-
-} 
-
-
-struct FuncAccessability<'a> {
-    func: &'a Function,
-    start_reg_status: [RegisterStatus; 16]
-}
 
 #[derive(Clone, Copy)]
 struct RegisterTracker {
