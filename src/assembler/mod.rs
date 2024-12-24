@@ -1,5 +1,5 @@
 
-use std::{panic, path::PathBuf};
+use std::{panic::{self, AssertUnwindSafe}, path::PathBuf};
 
 //use linker::AssemblyBuilder;
 use compilation::Compilation;
@@ -28,6 +28,8 @@ pub mod symbol_table;
 //pub mod assembler;
 pub mod access_checker;
 pub mod compiler;
+pub mod assembly_optimizer;
+pub mod tests;
 #[derive(Debug)]
 pub enum CompilationResult {
     Success {
@@ -43,15 +45,18 @@ pub enum CompilationResult {
     }
 }
 
-pub fn assemble(path: &PathBuf) -> CompilationResult {
-    let result = panic::catch_unwind(|| {   
+
+pub fn assembly_with_reader<T: FileReader>(file_reader: &mut T) -> CompilationResult {
+
+    let result = panic::catch_unwind(AssertUnwindSafe(|| {   
         let mut compilation = Compilation::new();
 
-        let file_reader:  &mut dyn FileReader = &mut StringFileReader::new(); //Bad file reader, will replace the default eventually.
-        if let Err(diagnostic) = file_reader.reset_to_file(&path) {
-            compilation.add_diagnostic(diagnostic);
-            return CompilationResult::Error { compilation_res: None, diagnostics: compilation.diagnostics() } ;
-        }
+        let path = if let Some(path) = file_reader.get_path() {
+            path.to_owned()
+        } else {
+            PathBuf::new()
+        };
+
 
         let opt_tokens = lexer::tokenise(file_reader, &path, &mut compilation);
         let tokens;
@@ -67,11 +72,16 @@ pub fn assemble(path: &PathBuf) -> CompilationResult {
         
 
         let ast = parser::parse(&mut compilation, tokens); 
+
+        println!("{:#?}", ast);
+
         let symbol_table = semantic_analyzer::analyze( TypeStream::new(ast), &mut compilation);
 
         let compiler = Compiler::new(symbol_table);
         let assembly = compiler.to_assembly();
+        print!("{:#?}", assembly);
 
+        let assembly = assembly_optimizer::optimize(assembly); 
         print!("{:#?}", assembly);
         //let assembly_builder = AssemblyBuilder::new();
         let compilation_res =
@@ -97,7 +107,7 @@ pub fn assemble(path: &PathBuf) -> CompilationResult {
         else {
             CompilationResult::Error { compilation_res, diagnostics: compilation.diagnostics() }
         }
-    });
+    }));
 
     match result {
         Ok(compilation_result) => compilation_result,
@@ -113,4 +123,12 @@ pub fn assemble(path: &PathBuf) -> CompilationResult {
             CompilationResult::Crash { crash_message: message }
         }
     }
+}
+
+
+pub fn assemble(path: &PathBuf) -> CompilationResult {
+    let mut file_reader = StringFileReader::new();
+    file_reader.reset_to_file(path);
+
+    assembly_with_reader(&mut file_reader)
 }

@@ -94,6 +94,10 @@ impl FileReader for StringFileReader {
             return Ok(self.file[index]);
         }    
     }
+    
+    fn get_path(&self) -> Option<&PathBuf> {
+        Some(&self.file_path)
+    }
 }
 
 impl StringFileReader {

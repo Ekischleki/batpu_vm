@@ -246,14 +246,23 @@ impl BodyCode for FunctionCall {
         &self.call_node
     }
 
-    fn get_op(&self, symbol_table: &SymbolTable) -> Vec<Operation> {
+    fn get_op(&self, _symbol_table: &SymbolTable) -> Vec<Operation> {
 
-        let ref_func = symbol_table.defined_functions.get(self.get_ref_func_name()).unwrap().borrow();
-        let func_args = ref_func.node.as_func().unwrap().2;
+        //let ref_func = symbol_table.defined_functions.get(self.get_ref_func_name()).unwrap().borrow();
+        //let func_args = ref_func.node.as_func().unwrap().2;
+        //It should be verified that the call args are the same as the func args.
+
+        let call_args = self.call_node.as_func_call().unwrap().1;
 
         let mut res = vec![];
 
-        for arg in func_args {
+        for arg in call_args {
+            println!("{:#?}", arg);
+
+            if arg.auto_assign.is_some() {
+                res.push(Operation::WriteReg(arg.register))
+            }
+
             let modifier = arg.modifier.as_ref().map(|modifier| modifier.token_type().as_param_modifier().unwrap());
 
             if let Some(m) = modifier {

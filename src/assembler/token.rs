@@ -73,6 +73,8 @@ pub enum TokenType {
     ClosedParen,
     OpenCurly,
     ClosedCurly,
+    As,
+
     Func,
     If,
     Else,

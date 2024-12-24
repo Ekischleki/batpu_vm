@@ -1,17 +1,48 @@
-func main(out r3) {
-    ldi r3 0
-    if eq {
-        zero_to_r3(in r3)
-    }
-    add r3 r3 _
+define stack_pointer rf
+
+func define_source(use r1, mut stack_pointer) {
+    push(r1: 10, mut stack_pointer)
+    push(r1: 13, mut stack_pointer)
+    push(r1: 16, mut stack_pointer)
+    push(r1: 21, mut stack_pointer)
+    push(r1: 30, mut stack_pointer)
+    push(r1: 45, mut stack_pointer)
+	ret
+}
+
+///Takes r1 where r1 is the base pointer of the last array
+///Takes r2 where r2 is the end r1
+func get_next_row(in r5 as base_array, r6 as base_array_end, use r1, use r3, use r4, mut stack_pointer, out ) {
+	//r3 = iterator
+	inc base_array
+	loop {
+		sub r5 r6
+		if ge {
+			ret
+		}
+		lod r1 r3 -1
+		lod r1 r4
+		sub r4 r3 r1
+		push(r1, mut stack_pointer)
+		
+		inc r
+		
+		
+	
+	}
+	
+
+}
+
+
+func push(r1, mut stack_pointer) {
+    str rf r1
+    adi rf 1
     ret
 }
 
-
-func zero_to_r3(out r3) {
-	ldi r3 0
-}
-
-func invalidate_r3(in r3) {
-    //We're done :3
+func pop(out r1, mut stack_pointer) {
+    adi stack_pointer -1
+    lod stack_pointer r1
+    ret
 }

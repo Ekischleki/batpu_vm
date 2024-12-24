@@ -10,6 +10,7 @@ pub trait FileReader {
     fn reset_to_file(&mut self, file: &PathBuf) -> Result<(), Diagnostic>;
     fn read_char(&mut self) -> Result<char, FileReaderError>;
     fn peek_char(&mut self) -> Result<char, FileReaderError>;
+    fn get_path(&self) -> Option<&PathBuf>;
 }
 #[derive(Debug)]
 pub enum FileReaderError {

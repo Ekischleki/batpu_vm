@@ -3,13 +3,13 @@ use std::fmt::Debug;
 use super::code_location::CodeLocation;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DiagnosticType {
     Info,
     Warning,
     Error
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DiagnosticPipelineLocation {
     Lexing,
     Parsing,
@@ -22,7 +22,7 @@ pub enum DiagnosticPipelineLocation {
     Assembling
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Diagnostic {
     pub diagnostic_type: DiagnosticType,
     pub location: Option<CodeLocation>,
@@ -33,7 +33,7 @@ pub struct Diagnostic {
     pub pipeline_location: DiagnosticPipelineLocation
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Visualisation {
     pub location: CodeLocation,
     pub description: String,

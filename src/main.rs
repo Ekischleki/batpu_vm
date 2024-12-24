@@ -3,8 +3,8 @@ use std::{path::PathBuf, str::FromStr};
 use assembler::CompilationResult;
 use vm::cpu::CPU;
 
-pub mod vm;
 pub mod assembler;
+pub mod vm;
 
 fn main() {
     

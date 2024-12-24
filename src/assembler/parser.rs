@@ -252,15 +252,37 @@ pub fn read_args(compilation: &mut Compilation, token_stream: &mut TypeStream<To
     }
 }
 
+fn read_auto_assign(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Token> {
+    let possible_colon = peek_token_type(token_stream);
+
+    if let TokenType::Colon = possible_colon { //We have an auto assign
+        _ = token_stream.next();
+        token_or_diagnostic(compilation, token_stream, TokenType::ConstValue(ConstValue::U8(0)))
+    } else {
+        None
+    }
+}
+
+fn read_alias(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Token> {
+    let possible_as = peek_token_type(token_stream);
+
+    if let TokenType::As = possible_as { //We have an alias
+        _ = token_stream.next();
+        token_or_diagnostic(compilation, token_stream, TokenType::Identifier("".into()))
+    } else {
+        None
+    }
+}
+
 pub fn read_arg(compilation: &mut Compilation, token_stream: &mut TypeStream<Token>) -> Option<Arg> {
     let current_token = peek_token_type(token_stream);
     match current_token {
-        TokenType::Register(i) =>  {Some(Arg {register: i, modifier: None, register_token: token_stream.next()})}
+        TokenType::Register(i) =>  {Some(Arg {register: i, modifier: None, register_token: token_stream.next(), alias: read_alias(compilation, token_stream), auto_assign: read_auto_assign(compilation, token_stream)})}
         TokenType::ParamModifier(_) => {
             let modifier = token_stream.next();
             let reg = token_or_diagnostic(compilation, token_stream, TokenType::Register(0))?;
             if let TokenType::Register(i) = reg.token_type() {
-                Some(Arg {register: *i, modifier: Some(modifier), register_token: reg})
+                Some(Arg {register: *i, modifier: Some(modifier), register_token: reg, alias: read_alias(compilation, token_stream), auto_assign: read_auto_assign(compilation, token_stream)})
             } else {
                 panic!("Expected register");
             }

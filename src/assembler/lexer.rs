@@ -29,6 +29,8 @@ static KEYWORD_MAPPING: phf::Map<&'static str, &'static TokenType> = phf_map! {
     "in" => &TokenType::ParamModifier(ParamModifier::In),
     "out" => &TokenType::ParamModifier(ParamModifier::Out),
     "use" => &TokenType::ParamModifier(ParamModifier::Use),
+    "as" => &TokenType::As,
+
 
     "loop" => &TokenType::Loop,
     "if" => &TokenType::If,
@@ -216,7 +218,7 @@ fn read_number(file_reader: &mut dyn FileReader, current_file: &PathBuf) -> Resu
     let start_char = file_reader.get_position();
     let mut number = String::new();
     let mut number_char = file_reader.read_char().expect("Unintended file reading error.");
-    while number_char.is_ascii_digit() || number_char == '.' {
+    while number_char.is_ascii_digit() || number_char == '-' {
         if IGNORE_CHARS.contains(&number_char) {
             break;
         }

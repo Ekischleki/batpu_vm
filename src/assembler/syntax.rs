@@ -73,7 +73,51 @@ impl Node {
 pub struct Arg {
     pub register: u8,
     pub register_token: Token,
+    pub alias: Option<Token>,
     pub modifier: Option<Token>,
+    pub auto_assign: Option<Token>
+}
+
+impl PartialEq for Arg {
+    fn eq(&self, other: &Self) -> bool {
+        if self.register != other.register {
+            return false;
+        }
+        if self.modifier.is_some() != other.modifier.is_some() {
+            return false;
+        }
+
+        if self.modifier.is_none() && other.modifier.is_none() {
+            return true;
+        }
+
+        let self_modifier = self.modifier.as_ref().unwrap().token_type().as_param_modifier();
+        let other_modifier = other.modifier.as_ref().unwrap().token_type().as_param_modifier();
+
+        if self_modifier != other_modifier {
+            return false;
+        }
+        true
+    }
+}
+
+impl Arg {
+    ///Gets the location of the whole arg
+    pub fn location(&self) -> CodeLocation {
+        let begin = if let Some(modifier) = &self.modifier {
+            modifier.code_location()
+        } else {
+            self.register_token.code_location()
+        };
+
+        let end = if let Some(auto_assign) = &self.auto_assign {
+            auto_assign.code_location()
+        } else {
+            self.register_token.code_location()
+        };
+
+        begin.to(end)
+    }
 }
 
 #[derive(Debug, EnumAsInner)]

@@ -7,6 +7,25 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug unit tests in library 'bat_pu_21'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=bat_pu_21"
+                ],
+                "filter": {
+                    "name": "bat_pu_21",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug executable 'bat_pu_21'",
             "cargo": {
                 "args": [
@@ -20,8 +39,7 @@
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}",
-            "terminal": "external"
+            "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",

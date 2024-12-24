@@ -62,13 +62,13 @@ impl Compiler {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, enum_as_inner::EnumAsInner)]
 pub enum Assembly {
     Instruction(AsmInstruction),
     Label(usize)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AsmInstruction {
     NOP,
     HLT,
